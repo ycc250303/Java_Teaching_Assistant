@@ -1,5 +1,6 @@
 package com.example.ui;
 
+import com.example.services.AiServiceClient;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
 
@@ -11,10 +12,14 @@ import java.awt.*;
 public class ChatToolWindowContent {
     private final JPanel mainPanel;
     private final Project project;
+    private final AiServiceClient aiClient; // 新增：AI 客户端
 
     public ChatToolWindowContent(Project project) {
         this.project = project;
+
         this.mainPanel = new JPanel(new BorderLayout());
+        // 初始化 AI 客户端，每个项目使用唯一的 memoryId
+        this.aiClient = new AiServiceClient(project.hashCode());
 
         // 创建聊天显示区域
         JTextArea chatArea = new JTextArea();
@@ -57,9 +62,36 @@ public class ChatToolWindowContent {
             if (!message.isEmpty()) {
                 chatArea.append("用户: " + message + "\n");
                 inputField.setText("");
-                inputField.requestFocus();
-                // TODO: 在这里添加AI响应逻辑
-                chatArea.append("AI: 收到您的消息\n");
+                inputField.setEnabled(false); // 发送时禁用输入框
+                sendButton.setEnabled(false); // 禁用发送按钮
+
+                chatArea.append("AI: ");
+
+                int aiResponseStart = chatArea.getText().length(); // 记录 AI 响应开始位置
+
+                // 调用 AI 服务
+                aiClient.sendMessage(
+                        message,
+                        // onChunk: 接收到数据块
+                        chunk -> {
+                            chatArea.append(chunk);
+                            // 自动滚动到底部
+                            chatArea.setCaretPosition(chatArea.getText().length());
+                        },
+                        // onComplete: 完成
+                        () -> {
+                            chatArea.append("\n");
+                            inputField.setEnabled(true); // 恢复输入框
+                            sendButton.setEnabled(true); // 恢复发送按钮
+                            inputField.requestFocus();
+                        },
+                        // onError: 出错
+                        error -> {
+                            chatArea.append("\n[错误] " + error + "\n");
+                            inputField.setEnabled(true);
+                            sendButton.setEnabled(true);
+                            inputField.requestFocus();
+                        });
             }
         });
 
