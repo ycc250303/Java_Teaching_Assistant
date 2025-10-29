@@ -24,7 +24,11 @@
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-
+        <toolWindow id="智能会话"
+                    secondary="false"
+                    anchor="right"
+                    icon="/META-INF/pluginIcon.svg"
+                    factoryClass="com.example.ui.ChatToolWindowFactory"/>
     </extensions>
     <actions>
         <action id="SelectAction" class="com.example.demo.SelectAction" text="SelectAction"

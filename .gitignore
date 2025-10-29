@@ -1,4 +1,6 @@
-
 # Ignore specific files
 .gitignore
-ai-code-helper/src/main/resources/application.yml
+
+# Ignore application configuration files with sensitive information
+**/application.yml
+**/application-*.yml
