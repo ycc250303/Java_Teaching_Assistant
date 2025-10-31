@@ -4,11 +4,10 @@
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
-        <option name="externalProjectPath" value="$PROJECT_DIR$/demo" />
-        <option name="gradleJvm" value="#JAVA_HOME" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/java-teaching-assistant" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$/demo" />
+            <option value="$PROJECT_DIR$/java-teaching-assistant" />
           </set>
         </option>
       </GradleProjectSettings>

@@ -12,12 +12,12 @@ langchain4j:
     dashscope:
       chat-model:
         model-name: qwen-max
-        api-key: <your-qwen-api-key> # 通义千问的 key
+        api-key: sk-fc52d9f1bc22437396694a03c1813091 # 通义千问的 key
       streaming-chat-model:
         model-name: qwen-max
-        api-key: <your-qwen-api-key> # 通义千问的 key
+        api-key: sk-fc52d9f1bc22437396694a03c1813091 # 通义千问的 key
       embedding-model:
         model-name: text-embedding-v4
-        api-key: <your-qwen-api-key> # 通义千问的 key
+        api-key: sk-fc52d9f1bc22437396694a03c1813091 # 通义千问的 key
 bigmodel:
-  api-key: <your-bigmodel-api-key> # 智谱的 key
+  api-key: 328904f8a42b41deaf4f951ed3abd86a.h3oVYYCDZfvm80hI # 智谱的 key

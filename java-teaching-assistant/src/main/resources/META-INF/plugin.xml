@@ -1,0 +1,59 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
+    <id>com.example.select-demo</id>
+
+    <!-- Public plugin name should be written in Title Case.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
+    <name>Select-demo</name>
+
+    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+    <vendor url="https://www.yourcompany.com">YourCompany</vendor>
+
+    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
+    <description><![CDATA[
+        Enter short description for your plugin here.<br>
+        <em>most HTML tags may be used</em>
+    ]]></description>
+
+    <!-- Product and plugin compatibility requirements.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <!-- Extension points defined by the plugin.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="智能会话"
+                    secondary="false"
+                    anchor="right"
+                    icon="/META-INF/pluginIcon.svg"
+                    factoryClass="com.javaProgram.ui.ChatToolWindowFactory"
+                    canCloseContents="true"
+
+        />
+        <!-- 注册上下文服务 - 使用Service注解，不需要手动注册 -->
+    </extensions>
+    <actions>
+        <!-- 编辑器右键菜单 - 添加到AI上下文 -->
+        <action id="com.javaProgram.AddToContextAction"
+                class="com.javaProgram.actions.AddToContextAction"
+                text="添加到AI上下文"
+                description="将选中的代码添加到AI对话的上下文中">
+            <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="EditorCopy"/>
+            <keyboard-shortcut first-keystroke="ctrl shift C" keymap="$default"/>
+        </action>
+
+        <!-- 工具栏菜单 - 清空上下文 -->
+        <action id="com.javaProgram.ClearContextAction"
+                class="com.javaProgram.actions.ClearContextAction"
+                text="清空AI上下文"
+                description="清空所有已添加的AI上下文">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+
+    <applicationListeners>
+
+    </applicationListeners>
+</idea-plugin>

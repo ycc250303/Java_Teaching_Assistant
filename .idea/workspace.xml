@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="7dc1a3d6-5930-4718-86ad-e374229914c6" name="更改" comment="">
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/.idea/gradle.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/.idea/kotlinc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/.intellijPlatform/coroutines-javaagent-legacy.jar" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/.intellijPlatform/self-update.lock" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/.run/Run IDE with Plugin.run.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/README.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/build.gradle.kts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/gradle.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/gradle/wrapper/gradle-wrapper.jar" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/gradle/wrapper/gradle-wrapper.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/gradlew" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/gradlew.bat" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/settings.gradle.kts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/services/AiServiceClient.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/ui/ChatToolWindowContent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/ui/ChatToolWindowFactory.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/src/main/resources/META-INF/plugin.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/java-teaching-assistant/src/main/resources/META-INF/pluginIcon.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/ai/AiCodeHelper.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/ai/AiCodeHelper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/ai/AiCodeHelperServiceFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/ai/AiCodeHelperServiceFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/ai/rag/RagConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/ai/rag/RagConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/config/AiModelConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/config/AiModelConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/controller/AiController.java" beforeDir="false" afterPath="$PROJECT_DIR$/ai-code-helper/src/main/java/com/example/aicodehelper/controller/AiController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/ai-code-helper/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/resources/docs/Java 编程学习路线.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/resources/docs/程序员常见面试题.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/resources/docs/鱼皮的求职指南.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/resources/docs/鱼皮的项目学习建议.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai-code-helper/src/main/resources/system-prompt.txt" beforeDir="false" afterPath="$PROJECT_DIR$/ai-code-helper/src/main/resources/system-prompt.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.idea/gradle.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.idea/kotlinc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.intellijPlatform/coroutines-javaagent-legacy.jar" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.intellijPlatform/self-update.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/.run/Run IDE with Plugin.run.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/README.pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/build.gradle.kts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/gradle.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/gradle/wrapper/gradle-wrapper.jar" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/gradle/wrapper/gradle-wrapper.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/gradlew" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/gradlew.bat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/settings.gradle.kts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/src/main/java/com/example/demo/SelectAction.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/src/main/java/com/example/demo/SelectListener.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/src/main/java/com/example/services/AiServiceClient.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/src/main/java/com/example/ui/ChatToolWindowContent.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/src/main/java/com/example/ui/ChatToolWindowFactory.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/src/main/resources/META-INF/plugin.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo/src/main/resources/META-INF/pluginIcon.svg" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$/demo">
+      <ProjectState />
+    </projectState>
+    <projectState path="$PROJECT_DIR$/java-teaching-assistant">
+      <ProjectState />
+    </projectState>
+    <projectState path="$PROJECT_DIR$/teaching-assistant">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <task path="D:\github_download\Java_Teaching_Assistant\java-teaching-assistant">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$">
+          <activation />
+        </task>
+        <task path="D:\github_download\Java_Teaching_Assistant\demo">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/java-teaching-assistant">
+          <activation />
+        </task>
+        <task path="D:\github_download\Java_Teaching_Assistant\teaching-assistant">
+          <activation />
+        </task>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="java-teaching-assistant" type="f1a62948:ProjectNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="java-teaching-assistant" type="f1a62948:ProjectNode" />
+                <item name="Dependencies" type="6de06a37:ExternalSystemViewDefaultContributor$MyDependenciesNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="java-teaching-assistant" type="f1a62948:ProjectNode" />
+                <item name="运行配置" type="7b0102dc:RunConfigurationsNode" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GradleScriptDefinitionsStorage" workingDir="$PROJECT_DIR$/java-teaching-assistant" gradleHome="E:\apache-maven-3.9.11\repository\wrapper\dists\gradle-8.14.3-bin\cv11ve7ro1n3o1j4so8xd9n66\gradle-8.14.3" javaHome="D:\Java\jdk-21" gradleVersion="8.14.3">
+    <option name="jvmArguments">
+      <list>
+        <option value="-Dhttp.proxyHost=127.0.0.1" />
+        <option value="-Dhttp.proxyPort=7890" />
+        <option value="-Dhttps.proxyHost=127.0.0.1" />
+        <option value="-Dhttps.proxyPort=7890" />
+      </list>
+    </option>
+  </component>
+  <component name="KubernetesApiPersistence">{}</component>
+  <component name="KubernetesApiProvider">{
+  &quot;isMigrated&quot;: true
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="34lz8X86DzXcN8Ay13QnlRHZe9f" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Gradle.D:/github_download/Java_Teaching_Assistant/java-teaching-assistant.executor": "Run",
+    "Gradle.Run IDE with Plugin.executor": "Run",
+    "Gradle.构建 java-teaching-assistant.executor": "Run",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "Spring Boot.AiCodeHelperApplication.executor": "Run",
+    "git-widget-placeholder": "F0-Try",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "D:/github_download/Java_Teaching_Assistant",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager" selected="Gradle.Run IDE with Plugin">
+    <configuration name="D:/github_download/Java_Teaching_Assistant/java-teaching-assistant" type="GradleRunConfiguration" factoryName="Gradle" nameIsGenerated="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/java-teaching-assistant" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list />
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
+    <configuration name="AiCodeHelperApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="ai-code-helper" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.example.aicodehelper.AiCodeHelperApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Gradle.Run IDE with Plugin" />
+      <item itemvalue="Gradle.D:/github_download/Java_Teaching_Assistant/java-teaching-assistant" />
+      <item itemvalue="Spring Boot.AiCodeHelperApplication" />
+    </list>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="7dc1a3d6-5930-4718-86ad-e374229914c6" name="更改" comment="" />
+      <created>1761802790187</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1761802790187</updated>
+      <workItem from="1761802791397" duration="4125000" />
+      <workItem from="1761806939262" duration="1618000" />
+      <workItem from="1761808982428" duration="126000" />
+      <workItem from="1761809111473" duration="74000" />
+      <workItem from="1761809226216" duration="10021000" />
+      <workItem from="1761830551210" duration="13225000" />
+      <workItem from="1761876012045" duration="5450000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

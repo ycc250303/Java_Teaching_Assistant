@@ -13,6 +13,12 @@
         <module name="ai-code-helper" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="demo.main" target="21" />
+      <module name="demo.test" target="21" />
+      <module name="teaching_assistant.main" target="21" />
+      <module name="teaching_assistant.test" target="21" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
