@@ -629,6 +629,55 @@ public class ChatToolWindowContent {
         }
     }
 
+    /**
+     * 公共方法：发送消息到AI（可以从外部调用）
+     * @param message 要发送的消息
+     */
+    public void sendMessage(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> {
+            // 添加用户消息气泡
+            JPanel userMessage = createUserMessageBubble(message.trim());
+            addMessageToChat(userMessage, true);
+
+            // 显示思考中提示
+            showThinkingIndicator();
+
+            // 构建包含上下文的完整消息
+            String fullMessage = message.trim();
+            if (contextService != null) {
+                String currentContext = contextService.getCurrentContext();
+                if (!currentContext.trim().isEmpty()) {
+                    fullMessage = currentContext + "\n\n用户问题:\n" + message.trim();
+                }
+            }
+
+            // 调用 AI 服务
+            aiClient.sendMessage(
+                    fullMessage,
+                    // onChunk: 接收到数据块
+                    chunk -> {
+                        // 如果是第一个chunk，先开始AI响应
+                        if (currentAiMessage == null) {
+                            startAiResponse();
+                        }
+                        appendAiMessageChunk(chunk);
+                    },
+                    // onComplete: 完成
+                    () -> {
+                        finishAiResponse();
+                    },
+                    // onError: 出错
+                    error -> {
+                        hideThinkingIndicator(); // 隐藏思考提示
+                        addAiErrorMessage(error);
+                    });
+        });
+    }
+
     public JComponent getContent() {
         return mainPanel;
     }

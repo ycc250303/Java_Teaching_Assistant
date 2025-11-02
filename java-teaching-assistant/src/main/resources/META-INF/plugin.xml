@@ -44,6 +44,14 @@
             <keyboard-shortcut first-keystroke="ctrl shift C" keymap="$default"/>
         </action>
 
+        <!-- 编辑器右键菜单 - 向AI提问此代码 -->
+        <action id="com.javaProgram.AskQuestionAboutCodeAction"
+                class="com.javaProgram.actions.AskQuestionAboutCodeAction"
+                text="向AI提问此代码"
+                description="选中代码后，向AI提问并自动打开聊天窗口">
+            <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="com.javaProgram.AddToContextAction"/>
+        </action>
+
         <!-- 工具栏菜单 - 清空上下文 -->
         <action id="com.javaProgram.ClearContextAction"
                 class="com.javaProgram.actions.ClearContextAction"
