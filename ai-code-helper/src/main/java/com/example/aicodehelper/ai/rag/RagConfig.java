@@ -1,6 +1,7 @@
 package com.example.aicodehelper.ai.rag;
 
 import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.document.splitter.DocumentByParagraphSplitter;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -12,6 +13,9 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import java.util.List;
 
@@ -53,12 +57,56 @@ public class RagConfig {
         // 3. 自定义文档加载器
         EmbeddingStoreIngestor ingestor = EmbeddingStoreIngestor.builder()
                 .documentSplitter(paragraphSplitter)
-                // 为了提高搜索质量，为每个 TextSegment 添加文档名称和类型
+                // 为了提高搜索质量，为每个 TextSegment 添加文档名称、类型和页码信息
                 .textSegmentTransformer(textSegment -> {
-                    String fileName = textSegment.metadata().getString("file_name");
+                    // 获取原始metadata
+                    Metadata originalMetadata = textSegment.metadata();
+
+                    // 从metadata中获取信息（使用getString方法）
+                    String fileName = originalMetadata.getString("file_name");
+                    if (fileName == null || fileName.isEmpty()) {
+                        fileName = "未知文件";
+                    }
+
+                    String pageNumber = originalMetadata.getString("page_number");
                     String fileType = getFileTypeFromName(fileName);
-                    String enhancedText = String.format("[%s - %s]\n%s", fileName, fileType, textSegment.text());
-                    return TextSegment.from(enhancedText, textSegment.metadata());
+
+                    // 构建增强的文本，包含文档信息
+                    StringBuilder enhancedText = new StringBuilder();
+                    enhancedText.append("[").append(fileName);
+                    if (pageNumber != null && !pageNumber.isEmpty()) {
+                        enhancedText.append(" - 第").append(pageNumber).append("页");
+                    }
+                    enhancedText.append(" - ").append(fileType).append("]\n");
+                    enhancedText.append(textSegment.text());
+
+                    // 创建新的Metadata对象：从原始metadata创建Map，然后更新
+                    Map<String, String> metadataMap = new HashMap<>();
+
+                    // 复制原有metadata中的值（如果存在）
+                    if (originalMetadata.getString("file_name") != null) {
+                        metadataMap.put("file_name", originalMetadata.getString("file_name"));
+                    }
+                    if (originalMetadata.getString("file_path") != null) {
+                        metadataMap.put("file_path", originalMetadata.getString("file_path"));
+                    }
+                    if (originalMetadata.getString("page_number") != null) {
+                        metadataMap.put("page_number", originalMetadata.getString("page_number"));
+                    }
+                    if (originalMetadata.getString("total_pages") != null) {
+                        metadataMap.put("total_pages", originalMetadata.getString("total_pages"));
+                    }
+
+                    // 确保必要的字段存在（覆盖或添加）
+                    metadataMap.put("file_name", fileName);
+                    if (pageNumber != null && !pageNumber.isEmpty()) {
+                        metadataMap.put("page_number", pageNumber);
+                    }
+
+                    // 使用Map创建新的Metadata对象
+                    Metadata newMetadata = Metadata.from(metadataMap);
+
+                    return TextSegment.from(enhancedText.toString(), newMetadata);
                 })
                 // 使用指定的向量模型
                 .embeddingModel(qwenEmbeddingModel)
@@ -69,6 +117,18 @@ public class RagConfig {
         if (!documents.isEmpty()) {
             ingestor.ingest(documents);
             log.info("文档向量化处理完成");
+
+            // 验证metadata保存情况
+            log.debug("样本metadata验证：检查前5个文档的metadata信息");
+            int sampleCount = Math.min(5, documents.size());
+            for (int i = 0; i < sampleCount; i++) {
+                Document doc = documents.get(i);
+                Metadata metadata = doc.metadata();
+                log.debug("文档 {} metadata: file_name={}, page_number={}",
+                        i + 1,
+                        metadata.getString("file_name"),
+                        metadata.getString("page_number"));
+            }
         }
 
         // 4. 自定义内容查询器
@@ -79,7 +139,7 @@ public class RagConfig {
                 .minScore(0.75) // 过滤掉分数小于 0.75 的结果
                 .build();
 
-        log.info("RAG系统初始化完成");
+        log.info("RAG系统初始化完成，支持页码引用");
         return contentRetriever;
     }
 
@@ -89,7 +149,12 @@ public class RagConfig {
     private String getFileTypeFromName(String fileName) {
         if (fileName == null) return "未知";
 
-        String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+        int lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex == -1 || lastDotIndex == fileName.length() - 1) {
+            return "未知文件";
+        }
+
+        String extension = fileName.substring(lastDotIndex + 1).toLowerCase();
         return switch (extension) {
             case "pdf" -> "PDF文档";
             case "doc", "docx" -> "Word文档";
