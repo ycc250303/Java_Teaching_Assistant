@@ -52,6 +52,14 @@
             <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="com.javaProgram.AddToContextAction"/>
         </action>
 
+        <!-- 编辑器右键菜单 - AI修改代码 -->
+        <action id="com.javaProgram.ModifyCodeAction"
+                class="com.javaProgram.actions.ModifyCodeAction"
+                text="AI修改代码"
+                description="选中代码后，输入修改指令，AI会自动修改代码并应用到编辑器">
+            <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="com.javaProgram.AskQuestionAboutCodeAction"/>
+        </action>
+
         <!-- 工具栏菜单 - 清空上下文 -->
         <action id="com.javaProgram.ClearContextAction"
                 class="com.javaProgram.actions.ClearContextAction"

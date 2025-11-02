@@ -4,12 +4,17 @@ import com.example.aicodehelper.ai.AiCodeHelperService;
 import jakarta.annotation.Resource;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
+import java.util.Map;
+
 @RestController
-@RequestMapping("/ai")
+@RequestMapping("/api/ai")
 public class AiController {
 
     @Resource
@@ -42,5 +47,65 @@ public class AiController {
         } catch (Exception e) {
             return "抱歉，处理您的请求时遇到了问题：" + e.getMessage();
         }
+    }
+
+    /**
+     * 代码修改接口
+     * 接收代码修改请求，返回修改后的完整代码
+     *
+     * @param request 包含原始代码和修改指令的请求体
+     * @return 修改后的代码
+     */
+    @PostMapping("/modify-code")
+    public Map<String, String> modifyCode(@RequestBody Map<String, String> request) {
+        try {
+            String originalCode = request.get("originalCode");
+            String modificationInstruction = request.get("instruction");
+            String fileName = request.getOrDefault("fileName", "");
+
+            if (originalCode == null || originalCode.trim().isEmpty()) {
+                return Map.of("error", "原始代码不能为空");
+            }
+
+            if (modificationInstruction == null || modificationInstruction.trim().isEmpty()) {
+                return Map.of("error", "修改指令不能为空");
+            }
+
+            // 构建给AI的完整提示词
+            String prompt = buildModificationPrompt(originalCode, modificationInstruction, fileName);
+
+            // 调用AI服务生成修改后的代码
+            String modifiedCode = aiCodeHelperService.modifyCode(prompt);
+
+            return Map.of(
+                    "modifiedCode", modifiedCode,
+                    "status", "success"
+            );
+        } catch (Exception e) {
+            return Map.of(
+                    "error", "代码修改失败: " + e.getMessage(),
+                    "status", "error"
+            );
+        }
+    }
+
+    /**
+     * 构建代码修改提示词
+     */
+    private String buildModificationPrompt(String originalCode, String instruction, String fileName) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("请根据以下指令修改代码。\n\n");
+
+        if (fileName != null && !fileName.isEmpty()) {
+            prompt.append("文件名: ").append(fileName).append("\n\n");
+        }
+
+        prompt.append("原始代码:\n```\n").append(originalCode).append("\n```\n\n");
+        prompt.append("修改指令: ").append(instruction).append("\n\n");
+        prompt.append("请直接返回修改后的完整代码，不要添加任何解释。");
+        prompt.append("代码必须可以直接使用，保持原有的格式和缩进。");
+        prompt.append("如果代码用```java包裹，请去掉包裹标记，只返回纯代码。");
+
+        return prompt.toString();
     }
 }
