@@ -27,3 +27,4 @@ public interface AiCodeHelperService {
     @SystemMessage(fromResource = "system-prompt.txt")
     Flux<String> chatStream(@MemoryId int memoryId, @UserMessage String userMessage);
 }
+
