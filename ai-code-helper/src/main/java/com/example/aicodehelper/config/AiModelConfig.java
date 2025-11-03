@@ -2,10 +2,10 @@ package com.example.aicodehelper.config;
 
 import dev.langchain4j.community.model.dashscope.QwenChatModel;
 import dev.langchain4j.community.model.dashscope.QwenEmbeddingModel;
+import dev.langchain4j.community.model.dashscope.QwenStreamingChatModel;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatModel;
-//import dev.langchain4j.model.dashscope.QwenChatModel;
-//import dev.langchain4j.model.dashscope.QwenEmbeddingModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
@@ -29,8 +29,9 @@ public class AiModelConfig {
                 .modelName(modelName)
                 .build();
     }
+
     @Bean
-    public EmbeddingModel embeddingModel() {  // 添加这个Bean定义
+    public EmbeddingModel embeddingModel() {
         return QwenEmbeddingModel.builder()
                 .apiKey(apiKey)
                 .build();

@@ -11,6 +11,7 @@ import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 public class AiCodeHelperServiceFactory {
@@ -28,7 +29,7 @@ public class AiCodeHelperServiceFactory {
     private StreamingChatModel qwenStreamingChatModel;
 
     @Bean
-    public AiCodeHelperService  aiCodeHelperService() {
+    public AiCodeHelperService aiCodeHelperService() {
         // 会话记忆
         ChatMemory chatMemory = MessageWindowChatMemory.withMaxMessages(10);
         // 构造 AI 服务并直接返回
