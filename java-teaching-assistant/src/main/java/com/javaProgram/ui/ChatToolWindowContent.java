@@ -14,8 +14,8 @@ import java.awt.*;
 
 public class ChatToolWindowContent {
     private static final float DEFAULT_FONT_SIZE = 14f; // 默认字体大小
-    private static final float SMALL_FONT_SIZE = 13f;   // 小字体大小
-    private static final float MINI_FONT_SIZE = 12f;    // 最小字体大小
+    private static final float SMALL_FONT_SIZE = 13f; // 小字体大小
+    private static final float MINI_FONT_SIZE = 12f; // 最小字体大小
 
     private final JPanel mainPanel;
     private final Project project;
@@ -47,7 +47,6 @@ public class ChatToolWindowContent {
         int blue = (int) Math.min(255, color.getBlue() + (255 - color.getBlue()) * factor);
         return new Color(red, green, blue, color.getAlpha());
     }
-
 
     // 创建用户消息气泡（右侧带框，自适应大小）
     private JPanel createUserMessageBubble(String message) {
@@ -89,15 +88,15 @@ public class ChatToolWindowContent {
         messageText.setForeground(JBUI.CurrentTheme.Label.foreground());
         messageText.setFont(JBUI.Fonts.smallFont());
         messageText.setBorder(JBUI.Borders.compound(
-            JBUI.Borders.customLine(lightenColor(JBColor.PanelBackground, 0.2f), 1),
-            JBUI.Borders.empty(2, 4)
-        ));
+                JBUI.Borders.customLine(lightenColor(JBColor.PanelBackground, 0.2f), 1),
+                JBUI.Borders.empty(2, 4)));
         messageText.setFocusable(false);
         messageText.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
         contentPanel.add(messageText);
 
         // 添加时间标签
-        JLabel timeLabel = new JLabel(java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
+        JLabel timeLabel = new JLabel(
+                java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
         timeLabel.setFont(JBUI.Fonts.miniFont());
         timeLabel.setForeground(JBUI.CurrentTheme.Label.disabledForeground());
         timeLabel.setBorder(JBUI.Borders.empty(4, 4, 2, 0));
@@ -116,12 +115,11 @@ public class ChatToolWindowContent {
         messagePanel.add(rightPanel, BorderLayout.CENTER);
         messagePanel.setBorder(JBUI.Borders.compound(
                 JBUI.Borders.customLine(lightenColor(JBColor.PanelBackground, 0.2f), 1),
-                JBUI.Borders.empty(4, 8)
-        ));
+                JBUI.Borders.empty(4, 8)));
         return messagePanel;
     }
 
-    //为了调整用户气泡的外框高度
+    // 为了调整用户气泡的外框高度
     private int userPreferredHeight;
 
     // 创建自适应大小的文本区域
@@ -139,7 +137,7 @@ public class ChatToolWindowContent {
 
         // 设置最大宽度为聊天区域的合适大小
         int maxTextWidth = JBUI.scale(250); // 限制最大宽度
-        int minTextWidth = JBUI.scale(20);  // 设置最小宽度
+        int minTextWidth = JBUI.scale(20); // 设置最小宽度
 
         // 估算文本需要的宽度
         String[] lines = text.split("\n");
@@ -174,7 +172,7 @@ public class ChatToolWindowContent {
         int preferredWidth = Math.max(minTextWidth, Math.min(maxLineLength + insetsWidth, maxTextWidth + insetsWidth));
         int preferredHeight = Math.max(1, totalLines) * lineHeight + insetsHeight;
 
-            userPreferredHeight = preferredHeight;
+        userPreferredHeight = preferredHeight;
 
         textArea.setPreferredSize(new Dimension(preferredWidth, preferredHeight));
         textArea.setMaximumSize(new Dimension(preferredWidth, preferredHeight));
@@ -227,7 +225,7 @@ public class ChatToolWindowContent {
         if (chatMessagesPanel.getComponentCount() > 0) {
             Component firstComponent = chatMessagesPanel.getComponent(0);
             if (firstComponent instanceof JLabel &&
-                ((JLabel)firstComponent).getText().contains("欢迎使用")) {
+                    ((JLabel) firstComponent).getText().contains("欢迎使用")) {
                 chatMessagesPanel.removeAll();
             }
         }
@@ -410,7 +408,7 @@ public class ChatToolWindowContent {
     private void addAiErrorMessage(String error) {
         if (currentAiMessage != null) {
             currentAiMessage.append("\n[错误] " + error + "\n");
-            currentAiMessage.setForeground(JBUI.CurrentTheme.Label.errorForeground());
+            currentAiMessage.setForeground(JBColor.RED);
         } else {
             JPanel errorPanel = createAiMessageBubble("[错误] " + error);
             addMessageToChat(errorPanel, true);
@@ -473,9 +471,8 @@ public class ChatToolWindowContent {
         chatScrollPane.setBackground(lightBackgroundColor);
         chatScrollPane.getViewport().setBackground(Color.WHITE);
         chatScrollPane.setBorder(JBUI.Borders.compound(
-            JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1),
-            JBUI.Borders.empty(4)
-        ));
+                JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1),
+                JBUI.Borders.empty(4)));
         chatScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         chatScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -499,9 +496,8 @@ public class ChatToolWindowContent {
         inputField.setForeground(JBUI.CurrentTheme.Label.foreground());
         inputField.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, DEFAULT_FONT_SIZE));
         inputField.setBorder(JBUI.Borders.compound(
-            JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1),
-            JBUI.Borders.empty(5)
-        ));
+                JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1),
+                JBUI.Borders.empty(5)));
 
         JBScrollPane inputScrollPane = new JBScrollPane(inputField);
         inputScrollPane.setBackground(inputBackgroundColor);
@@ -512,10 +508,10 @@ public class ChatToolWindowContent {
         // sendButton.setForeground(JBUI.CurrentTheme.Button.foreground());
         sendButton.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
         sendButton.setBorder(JBUI.Borders.compound(
-            JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.3f), 1),
-            JBUI.Borders.empty(8, 16)
-        ));
-        //sendButton.setPreferredSize(new Dimension(JBUI.scale(80), JBUI.scale(36))); // 宽80，高36
+                JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.3f), 1),
+                JBUI.Borders.empty(8, 16)));
+        // sendButton.setPreferredSize(new Dimension(JBUI.scale(80), JBUI.scale(36)));
+        // // 宽80，高36
 
         // 使用 InputMap 和 ActionMap 处理键盘快捷键
         InputMap inputMap = inputField.getInputMap(JComponent.WHEN_FOCUSED);
@@ -536,9 +532,8 @@ public class ChatToolWindowContent {
         inputPanel.add(inputScrollPane, BorderLayout.CENTER);
         inputPanel.add(sendButton, BorderLayout.EAST);
         inputPanel.setBorder(JBUI.Borders.compound(
-            JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1),
-            JBUI.Borders.empty(8)
-        ));
+                JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1),
+                JBUI.Borders.empty(8)));
 
         // 发送按钮事件
         sendButton.addActionListener(e -> {
@@ -631,6 +626,7 @@ public class ChatToolWindowContent {
 
     /**
      * 公共方法：发送消息到AI（可以从外部调用）
+     * 
      * @param message 要发送的消息
      */
     public void sendMessage(String message) {
