@@ -4,7 +4,6 @@ import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,7 +18,80 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @State(name = "ContextService", storages = @Storage("contextService.xml"))
 public final class ContextService implements PersistentStateComponent<ContextService.State> {
 
-    private final List<String> contextList;
+    /**
+     * 上下文项数据结构
+     */
+    public static class ContextItem {
+        private String fileName;
+        private String filePath;
+        private int startLine;
+        private int endLine;
+        private String content;
+
+        public ContextItem() {
+        }
+
+        public ContextItem(String fileName, String filePath, int startLine, int endLine, String content) {
+            this.fileName = fileName;
+            this.filePath = filePath;
+            this.startLine = startLine;
+            this.endLine = endLine;
+            this.content = content;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
+
+        public void setFileName(String fileName) {
+            this.fileName = fileName;
+        }
+
+        public String getFilePath() {
+            return filePath;
+        }
+
+        public void setFilePath(String filePath) {
+            this.filePath = filePath;
+        }
+
+        public int getStartLine() {
+            return startLine;
+        }
+
+        public void setStartLine(int startLine) {
+            this.startLine = startLine;
+        }
+
+        public int getEndLine() {
+            return endLine;
+        }
+
+        public void setEndLine(int endLine) {
+            this.endLine = endLine;
+        }
+
+        public String getContent() {
+            return content;
+        }
+
+        public void setContent(String content) {
+            this.content = content;
+        }
+
+        /**
+         * 获取显示的行数范围文本
+         */
+        public String getLineRangeText() {
+            if (startLine == endLine) {
+                return "Line " + startLine;
+            } else {
+                return "Lines " + startLine + "-" + endLine;
+            }
+        }
+    }
+
+    private final List<ContextItem> contextList;
     private String combinedContext;
     private List<ContextListener> listeners;
 
@@ -31,14 +103,27 @@ public final class ContextService implements PersistentStateComponent<ContextSer
 
     // 状态类，用于持久化
     public static class State {
-        public List<String> contextList = new ArrayList<>();
+        public List<ContextItem> contextList = new ArrayList<>();
     }
 
     /**
-     * 添加上下文
+     * 添加上下文（旧方法，保持兼容性）
+     * @deprecated 使用 addContext(ContextItem) 代替
      */
+    @Deprecated
     public void addContext(@NotNull String context) {
-        contextList.add(context);
+        // 为了保持兼容性，创建一个简单的ContextItem
+        ContextItem item = new ContextItem("Unknown", "", 0, 0, context);
+        contextList.add(item);
+        updateCombinedContext();
+        notifyListeners();
+    }
+
+    /**
+     * 添加结构化上下文
+     */
+    public void addContext(@NotNull ContextItem contextItem) {
+        contextList.add(contextItem);
         updateCombinedContext();
         notifyListeners();
     }
@@ -62,7 +147,7 @@ public final class ContextService implements PersistentStateComponent<ContextSer
     /**
      * 获取上下文列表的副本
      */
-    public List<String> getContextList() {
+    public List<ContextItem> getContextList() {
         return new ArrayList<>(contextList);
     }
 
@@ -115,8 +200,14 @@ public final class ContextService implements PersistentStateComponent<ContextSer
             sb.append("=== 用户提供的代码上下文 ===\n\n");
 
             for (int i = 0; i < contextList.size(); i++) {
+                ContextItem item = contextList.get(i);
                 sb.append("上下文 ").append(i + 1).append(":\n");
-                sb.append(contextList.get(i));
+                sb.append("文件: ").append(item.getFileName());
+                if (item.getStartLine() > 0) {
+                    sb.append(" (").append(item.getLineRangeText()).append(")");
+                }
+                sb.append("\n\n选中的代码:\n");
+                sb.append(item.getContent());
                 if (i < contextList.size() - 1) {
                     sb.append("\n\n---\n\n");
                 }

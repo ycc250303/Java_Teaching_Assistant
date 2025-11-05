@@ -3,6 +3,8 @@ package com.javaProgram.ui;
 import com.javaProgram.services.AiServiceClient;
 import com.javaProgram.services.ContextService;
 import com.javaProgram.services.PendingModificationManager;
+import com.javaProgram.ui.components.ContextDisplayPanel;
+import com.javaProgram.ui.components.MessageBubbleFactory;
 import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
@@ -29,6 +31,12 @@ public class ChatToolWindowContent {
     // 上下文状态显示
     private JLabel contextStatusLabel;
 
+    // 上下文显示面板
+    private ContextDisplayPanel contextDisplayPanel;
+    
+    // 消息气泡工厂
+    private MessageBubbleFactory messageBubbleFactory;
+
     private static final int MESSAGE_SPACING = JBUI.scale(4); // 消息之间的垂直间距（4像素）
 
     // 聊天相关组件
@@ -50,227 +58,6 @@ public class ChatToolWindowContent {
         int green = (int) Math.min(255, color.getGreen() + (255 - color.getGreen()) * factor);
         int blue = (int) Math.min(255, color.getBlue() + (255 - color.getBlue()) * factor);
         return new Color(red, green, blue, color.getAlpha());
-    }
-
-    
-    
-    // 创建用户消息气泡（右侧，自适应大小）
-    private JPanel createUserMessageBubble(String message) {
-        JPanel messagePanel = new JPanel(new BorderLayout());
-        messagePanel.setOpaque(false);
-
-        // 在BoxLayout中设置正确的对齐方式
-        messagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        messagePanel.setAlignmentY(Component.TOP_ALIGNMENT);
-
-        // 创建右侧消息容器
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        rightPanel.setOpaque(false);
-        rightPanel.setMaximumSize(new Dimension(Short.MAX_VALUE, Short.MAX_VALUE));
-
-        // 创建内容面板，用于垂直排列组件
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setOpaque(false);
-
-        // 将用户标签添加到内容面板
-        JLabel userLabel = new JLabel("励志学习java的小学生 🎓");
-        userLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD));
-        userLabel.setForeground(JBUI.CurrentTheme.Label.foreground());
-        userLabel.setBorder(JBUI.Borders.empty(1, 12, 1, 0));
-        userLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
-        userLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        contentPanel.add(userLabel);
-
-        // 使用自适应大小的圆角文本区域
-        JTextArea messageText = createAutoSizingTextArea(message);
-        // 设置圆角样式
-        if (messageText instanceof JTextArea) {
-            // 使用反射调用setRoundedStyle方法（因为是匿名内部类）
-            try {
-                java.lang.reflect.Method method = messageText.getClass().getMethod("setRoundedStyle", Color.class, Color.class, int.class);
-                method.invoke(messageText,
-                        lightenColor(JBColor.PanelBackground, 0.3f),  // 背景色
-                        lightenColor(JBColor.PanelBackground, 0.2f),  // 边框色
-                        JBUI.scale(8)                                    // 圆角半径8像素
-                );
-            } catch (Exception e) {
-                // 如果反射失败，使用备用方案
-                e.printStackTrace();
-            }
-        }
-        messageText.setForeground(JBUI.CurrentTheme.Label.foreground());
-        messageText.setFont(JBUI.Fonts.label());
-        // 添加内边距（通过空边框实现）
-        messageText.setBorder(JBUI.Borders.empty(2, 4));
-        messageText.setFocusable(false);
-        messageText.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
-        contentPanel.add(messageText);
-
-        // 添加时间标签
-        JLabel timeLabel = new JLabel(
-                java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
-        timeLabel.setFont(JBUI.Fonts.miniFont());
-        timeLabel.setForeground(JBUI.CurrentTheme.Label.disabledForeground());
-        timeLabel.setBorder(JBUI.Borders.empty(4, 4, 2, 0));
-        timeLabel.setAlignmentX(Component.RIGHT_ALIGNMENT); // 右对齐
-        timeLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        contentPanel.add(timeLabel);
-
-        // 将内容面板添加到rightPanel
-        rightPanel.add(contentPanel);
-
-        // 根据计算的高度设置外层面板的尺寸
-        messagePanel.setPreferredSize(new Dimension(Short.MAX_VALUE, userPreferredHeight + 80));
-        messagePanel.setMaximumSize(new Dimension(Short.MAX_VALUE, userPreferredHeight + 80));
-
-        messagePanel.add(rightPanel, BorderLayout.CENTER);
-        // 取消最外边框，只保留内边距
-        messagePanel.setBorder(JBUI.Borders.empty(4, 8));
-        return messagePanel;
-    }
-
-    // 为了调整用户气泡的外框高度
-    private int userPreferredHeight;
-
-    // 创建自适应大小的圆角文本区域
-    private JTextArea createAutoSizingTextArea(String text) {
-        // 创建圆角文本区域
-        JTextArea textArea = new JTextArea(text) {
-            private Color backgroundColor;
-            private Color borderColor;
-            private int radius;
-
-            public void setRoundedStyle(Color bgColor, Color bdrColor, int r) {
-                this.backgroundColor = bgColor;
-                this.borderColor = bdrColor;
-                this.radius = r;
-            }
-
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2d = (Graphics2D) g.create();
-
-                // 启用抗锯齿
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-                // 填充圆角背景
-                if (backgroundColor != null) {
-                    g2d.setColor(backgroundColor);
-                    g2d.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
-                }
-
-                // 绘制圆角边框
-                if (borderColor != null) {
-                    g2d.setColor(borderColor);
-                    g2d.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
-                }
-
-                g2d.dispose();
-
-                // 绘制文本
-                super.paintComponent(g);
-            }
-
-            @Override
-            public boolean isOpaque() {
-                return false; // 让背景透明，由paintComponent控制
-            }
-        };
-
-        // 设置基本属性
-        textArea.setEditable(false);
-        textArea.setLineWrap(true);
-        textArea.setWrapStyleWord(true);
-        textArea.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
-
-        // 计算文本需要的尺寸
-        FontMetrics metrics = textArea.getFontMetrics(textArea.getFont());
-        int lineHeight = metrics.getHeight();
-
-        // 设置最大宽度为聊天区域的合适大小
-        int maxTextWidth = JBUI.scale(300); // 限制最大宽度
-        int minTextWidth = JBUI.scale(20); // 设置最小宽度
-
-        // 估算文本需要的宽度
-        String[] lines = text.split("\n");
-        int maxLineLength = 0;
-        int totalLines = 0;
-
-        for (String line : lines) {
-            int lineWidth = metrics.stringWidth(line);
-            if (lineWidth > maxLineLength) {
-                maxLineLength = lineWidth;
-            }
-            totalLines++;
-        }
-
-        // 计算需要的行数（考虑自动换行）
-        if (maxLineLength > maxTextWidth) {
-            // 需要换行，重新计算行数
-            int estimatedLines = 0;
-            for (String line : lines) {
-                int estimatedLineLength = (int) Math.ceil((double) metrics.stringWidth(line) / maxTextWidth);
-                estimatedLines += Math.max(1, estimatedLineLength);
-            }
-            totalLines = estimatedLines;
-            maxLineLength = maxTextWidth;
-        }
-
-        // 加上内边距
-        int insetsWidth = textArea.getInsets().left + textArea.getInsets().right + JBUI.scale(24);
-        int insetsHeight = textArea.getInsets().top + textArea.getInsets().bottom + JBUI.scale(10);
-
-        // 设置最终尺寸
-        int preferredWidth = Math.max(minTextWidth, Math.min(maxLineLength + insetsWidth, maxTextWidth + insetsWidth));
-        int preferredHeight = Math.max(1, totalLines) * lineHeight + insetsHeight;
-
-        userPreferredHeight = preferredHeight;
-
-        textArea.setPreferredSize(new Dimension(preferredWidth, preferredHeight));
-        textArea.setMaximumSize(new Dimension(preferredWidth, preferredHeight));
-
-        return textArea;
-    }
-
-    // 创建AI消息气泡
-    private JPanel createAiMessageBubble(String message) {
-        // 主面板
-        JPanel messagePanel = new JPanel(new BorderLayout());
-        messagePanel.setOpaque(false);
-
-        // 设置对齐方式
-        messagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        messagePanel.setAlignmentY(Component.TOP_ALIGNMENT);
-
-        // AI标签
-        JLabel aiLabel = new JLabel("AI小老师 👨‍🏫");
-        aiLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
-        aiLabel.setForeground(JBUI.CurrentTheme.Label.foreground());
-        aiLabel.setBorder(JBUI.Borders.empty(1, 8, 1, 8));
-
-        // AI消息文本
-        JTextArea messageText = new JTextArea(message);
-        messageText.setEditable(false);
-        messageText.setLineWrap(true);
-        messageText.setWrapStyleWord(true);
-        messageText.setOpaque(false);
-        messageText.setForeground(JBUI.CurrentTheme.Label.foreground());
-        messageText.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
-        messageText.setBorder(JBUI.Borders.empty(0, 8, 2, 8));
-        messageText.setFocusable(false);
-
-        // 设置合理的宽度限制
-        int viewportWidth = chatScrollPane != null ? chatScrollPane.getViewport().getWidth() : 400;
-        int maxWidth = Math.max(200, viewportWidth - 60); // 确保最小宽度200像素
-        messageText.setSize(new Dimension(maxWidth, 1));
-
-        // 组装面板
-        messagePanel.add(aiLabel, BorderLayout.NORTH);
-        messagePanel.add(messageText, BorderLayout.CENTER);
-        messagePanel.setBorder(JBUI.Borders.empty(0, 8, 0, 8));
-        return messagePanel;
     }
 
     // 添加消息到聊天面板
@@ -464,7 +251,7 @@ public class ChatToolWindowContent {
             currentAiMessage.append("\n[错误] " + error + "\n");
             currentAiMessage.setForeground(JBColor.RED);
         } else {
-            JPanel errorPanel = createAiMessageBubble("[错误] " + error);
+            JPanel errorPanel = messageBubbleFactory.createAiMessageBubble("[错误] " + error);
             addMessageToChat(errorPanel, true);
         }
         finishAiResponse();
@@ -765,39 +552,134 @@ public class ChatToolWindowContent {
 
         // 为滚动条添加平滑滚动
         chatScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
+        // 初始化消息气泡工厂
+        messageBubbleFactory = new MessageBubbleFactory(chatScrollPane);
 
-        // 创建输入区域
+        // 创建输入区域容器（包含上下文显示和输入框）
+        JPanel inputAreaContainer = new JPanel(new BorderLayout());
+        inputAreaContainer.setBackground(lightBackgroundColor);
+
+        // 创建上下文显示面板
+        contextDisplayPanel = new ContextDisplayPanel(contextService, project);
+
+        // 创建输入面板
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.setBackground(lightBackgroundColor);
 
-        JTextArea inputField = new JTextArea(1, 12); // 初始1行
+        // 创建发送按钮 - 使用箭头图标
+        JButton sendButton = new JButton("→");
+        sendButton.setBackground(new JBColor(new Color(66, 133, 244), new Color(45, 100, 200)));
+        sendButton.setForeground(Color.WHITE);
+        sendButton.setFont(new Font("Arial", Font.BOLD, 18));
+        sendButton.setFocusPainted(false);
+        sendButton.setBorderPainted(false);
+        sendButton.setContentAreaFilled(true);
+        sendButton.setOpaque(true);
+        
+        // 设置固定大小
+        Dimension buttonSize = new Dimension(JBUI.scale(32), JBUI.scale(32));
+        sendButton.setPreferredSize(buttonSize);
+        sendButton.setMinimumSize(buttonSize);
+        sendButton.setMaximumSize(buttonSize);
+        
+        // 鼠标悬停效果
+        sendButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                sendButton.setBackground(new JBColor(new Color(51, 103, 214), new Color(35, 80, 180)));
+            }
+            
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                sendButton.setBackground(new JBColor(new Color(66, 133, 244), new Color(45, 100, 200)));
+            }
+        });
+
+        JTextArea inputField = new JTextArea(2, 12); // 初始2行
         inputField.setLineWrap(true);
         inputField.setWrapStyleWord(true);
 
-        // 设置最小和最大行数限制
-        final int MIN_ROWS = 1;
-        final int MAX_ROWS = 5; // 最多5行高度
-
-        // 设置输入框颜色
+        // 设置输入框颜色，右边留出按钮的空间
         inputField.setBackground(inputBackgroundColor);
         inputField.setForeground(JBUI.CurrentTheme.Label.foreground());
         inputField.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, DEFAULT_FONT_SIZE));
-        inputField.setBorder(JBUI.Borders.compound(
-                JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1),
-                JBUI.Borders.empty(5)));
+        // 右边留出40像素给按钮
+        inputField.setBorder(JBUI.Borders.empty(5, 8, 5, 45));
 
         JBScrollPane inputScrollPane = new JBScrollPane(inputField);
         inputScrollPane.setBackground(inputBackgroundColor);
         inputScrollPane.getViewport().setBackground(inputBackgroundColor);
+        inputScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        inputScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        inputScrollPane.setBorder(JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1));
+        
+        // 设置输入框的初始首选高度（基于行数）
+        FontMetrics fm = inputField.getFontMetrics(inputField.getFont());
+        int lineHeight = fm.getHeight();
+        int defaultRows = 2; // 默认显示2行
+        int defaultHeight = lineHeight * defaultRows + inputField.getInsets().top + inputField.getInsets().bottom + JBUI.scale(20);
+        inputScrollPane.setPreferredSize(new Dimension(300, defaultHeight));
 
-        JButton sendButton = new JButton("发送");
-        sendButton.setBackground(lightenColor(ideBackgroundColor, 0.2f));
-        sendButton.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
-        sendButton.setBorder(JBUI.Borders.compound(
-                JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.3f), 1),
-                JBUI.Borders.empty(8, 16)));
-        // sendButton.setPreferredSize(new Dimension(JBUI.scale(80), JBUI.scale(36)));
-        // // 宽80，高36
+        // 创建输入框容器，使用JLayeredPane确保按钮在最上层
+        JLayeredPane inputFieldContainer = new JLayeredPane() {
+            @Override
+            public Dimension getPreferredSize() {
+                // 基于输入框的首选大小
+                Dimension scrollPaneSize = inputScrollPane.getPreferredSize();
+                return new Dimension(scrollPaneSize.width, Math.max(scrollPaneSize.height, defaultHeight));
+            }
+        };
+        inputFieldContainer.setBackground(inputBackgroundColor);
+        
+        // 添加组件到不同的层
+        inputFieldContainer.add(inputScrollPane, JLayeredPane.DEFAULT_LAYER);
+        inputFieldContainer.add(sendButton, JLayeredPane.PALETTE_LAYER); // 按钮在更高的层
+        
+        // 监听容器大小变化，动态调整组件位置
+        inputFieldContainer.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                int containerWidth = inputFieldContainer.getWidth();
+                int containerHeight = inputFieldContainer.getHeight();
+                
+                // 输入框占据整个容器
+                inputScrollPane.setBounds(0, 0, containerWidth, containerHeight);
+                
+                // 按钮定位到右下角
+                int buttonWidth = sendButton.getPreferredSize().width;
+                int buttonHeight = sendButton.getPreferredSize().height;
+                int buttonX = containerWidth - buttonWidth - JBUI.scale(4);
+                int buttonY = containerHeight - buttonHeight - JBUI.scale(4);
+                sendButton.setBounds(buttonX, buttonY, buttonWidth, buttonHeight);
+            }
+        });
+
+        // 实现输入框高度自适应（最高不超过窗口高度的30%）
+        inputField.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                updateInputFieldHeight(inputField, inputScrollPane);
+            }
+        });
+
+        // 监听文本变化，动态调整输入框高度
+        inputField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> updateInputFieldHeight(inputField, inputScrollPane));
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> updateInputFieldHeight(inputField, inputScrollPane));
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> updateInputFieldHeight(inputField, inputScrollPane));
+            }
+        });
 
         // 添加悬浮效果 - 保存原始状态
         final Color originalBackground = sendButton.getBackground();
@@ -864,18 +746,19 @@ public class ChatToolWindowContent {
         // Shift+Enter：换行
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.SHIFT_DOWN_MASK), "insert-break");
 
-        inputPanel.add(inputScrollPane, BorderLayout.CENTER);
-        inputPanel.add(sendButton, BorderLayout.EAST);
-        inputPanel.setBorder(JBUI.Borders.compound(
-                JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.2f), 1),
-                JBUI.Borders.empty(8)));
+        inputPanel.add(inputFieldContainer, BorderLayout.CENTER);
+        inputPanel.setBorder(JBUI.Borders.empty(4));
+
+        // 组装输入区域容器
+        inputAreaContainer.add(contextDisplayPanel, BorderLayout.NORTH);
+        inputAreaContainer.add(inputPanel, BorderLayout.CENTER);
 
         // 发送按钮事件
         sendButton.addActionListener(e -> {
             String message = inputField.getText().trim();
             if (!message.isEmpty()) {
                 // 添加用户消息气泡
-                JPanel userMessage = createUserMessageBubble(message);
+                JPanel userMessage = messageBubbleFactory.createUserMessageBubble(message);
                 addMessageToChat(userMessage, true);
 
                 inputField.setText("");
@@ -941,9 +824,111 @@ public class ChatToolWindowContent {
 
         // 组装界面
         mainPanel.add(chatScrollPane, BorderLayout.CENTER);
-        mainPanel.add(inputPanel, BorderLayout.SOUTH);
+        mainPanel.add(inputAreaContainer, BorderLayout.SOUTH);
         mainPanel.add(contextStatusLabel, BorderLayout.NORTH);
 
+    }
+
+    /**
+     * 更新输入框高度以适应文本内容
+     */
+    private void updateInputFieldHeight(JTextArea inputField, JBScrollPane scrollPane) {
+        try {
+            // 获取主面板的高度
+            int mainPanelHeight = mainPanel.getHeight();
+
+            // 如果主面板高度为0（还没有完全初始化），使用默认值
+            if (mainPanelHeight <= 0) {
+                mainPanelHeight = 600; // 默认高度
+            }
+
+            // 计算最大允许高度（窗口高度的30%）
+            int maxHeight = (int) (mainPanelHeight * 0.3);
+
+            // 确保最大高度至少有一个合理的值
+            maxHeight = Math.max(maxHeight, JBUI.scale(150));
+
+            // 计算单行高度
+            FontMetrics fm = inputField.getFontMetrics(inputField.getFont());
+            int lineHeight = fm.getHeight();
+
+            // 计算实际显示的行数（包括自动换行）
+            int actualLines = calculateActualLineCount(inputField);
+
+            // 计算实际需要的高度
+            int contentHeight = actualLines * lineHeight + inputField.getInsets().top + inputField.getInsets().bottom
+                    + JBUI.scale(10);
+
+            // 设置最小高度（1行）和最大高度（30%）
+            int minHeight = lineHeight * 1 + inputField.getInsets().top + inputField.getInsets().bottom
+                    + JBUI.scale(10);
+            int targetHeight = Math.max(minHeight, Math.min(contentHeight, maxHeight));
+
+            // 只有在高度变化时才更新
+            if (Math.abs(scrollPane.getPreferredSize().height - targetHeight) > 2) {
+                // 更新滚动面板的首选高度
+                Dimension preferredSize = new Dimension(scrollPane.getPreferredSize().width, targetHeight);
+                scrollPane.setPreferredSize(preferredSize);
+                scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, targetHeight));
+                scrollPane.setMinimumSize(new Dimension(100, minHeight));
+
+                // 刷新布局 - 需要刷新父容器及其父容器
+                Container parent = scrollPane.getParent();
+                if (parent != null) {
+                    parent.revalidate();
+                    Container grandParent = parent.getParent();
+                    if (grandParent != null) {
+                        grandParent.revalidate();
+                    }
+                }
+                scrollPane.revalidate();
+            }
+        } catch (Exception ex) {
+            // 忽略异常
+        }
+    }
+
+    /**
+     * 计算文本区域实际显示的行数（包括自动换行）
+     */
+    private int calculateActualLineCount(JTextArea textArea) {
+        try {
+            String text = textArea.getText();
+            if (text.isEmpty()) {
+                return 1;
+            }
+
+            // 获取文本区域的宽度
+            int width = textArea.getWidth();
+            if (width <= 0) {
+                width = textArea.getParent().getWidth() - JBUI.scale(100); // 减去滚动条和边距
+            }
+            if (width <= 0) {
+                width = JBUI.scale(200); // 默认宽度
+            }
+
+            // 减去边距
+            width = width - textArea.getInsets().left - textArea.getInsets().right;
+
+            FontMetrics fm = textArea.getFontMetrics(textArea.getFont());
+            String[] lines = text.split("\n", -1);
+            int totalLines = 0;
+
+            for (String line : lines) {
+                if (line.isEmpty()) {
+                    totalLines++;
+                } else {
+                    // 计算这一行需要多少显示行
+                    int lineWidth = fm.stringWidth(line);
+                    int wrappedLines = (int) Math.ceil((double) lineWidth / width);
+                    totalLines += Math.max(1, wrappedLines);
+                }
+            }
+
+            return Math.max(1, totalLines);
+        } catch (Exception e) {
+            return textArea.getLineCount(); // 发生异常时使用简单的行数计算
+        }
     }
 
     /**
@@ -951,7 +936,8 @@ public class ChatToolWindowContent {
      */
     private void updateContextStatus() {
         if (contextService != null) {
-            int contextCount = contextService.getContextList().size();
+            java.util.List<ContextService.ContextItem> contextList = contextService.getContextList();
+            int contextCount = contextList.size();
             String text = "📝 上下文: " + contextCount + " 项";
 
             if (contextCount > 0) {
@@ -962,8 +948,12 @@ public class ChatToolWindowContent {
             }
 
             contextStatusLabel.setText(text);
+
+            // 更新上下文显示面板
+            contextDisplayPanel.updateContextDisplay(contextList);
         }
     }
+
 
     /**
      * 公共方法：发送消息到AI（可以从外部调用）
@@ -977,7 +967,7 @@ public class ChatToolWindowContent {
 
         SwingUtilities.invokeLater(() -> {
             // 添加用户消息气泡
-            JPanel userMessage = createUserMessageBubble(message.trim());
+            JPanel userMessage = messageBubbleFactory.createUserMessageBubble(message.trim());
             addMessageToChat(userMessage, true);
 
             // 显示思考中提示
