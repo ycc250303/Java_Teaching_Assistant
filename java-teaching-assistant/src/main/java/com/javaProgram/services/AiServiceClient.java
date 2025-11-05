@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 public class AiServiceClient {
     private static final String BASE_URL = "http://localhost:8081/api/ai/chat";
     private static final String MODIFY_CODE_URL = "http://localhost:8081/api/ai/modify-code";
+    private static final String MODIFY_CODE_WITH_DIFF_URL = "http://localhost:8081/api/ai/modify-code-with-diff";
     private int memoryId;
 
     public AiServiceClient(int memoryId) {
@@ -139,7 +140,8 @@ public class AiServiceClient {
 
                 // 设置请求头
                 connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                connection.setRequestProperty("Accept", "application/json");
+                connection.setRequestProperty("Accept", "application/json; charset=UTF-8");
+                connection.setRequestProperty("Accept-Charset", "UTF-8");
 
                 // 允许输出
                 connection.setDoOutput(true);
@@ -285,6 +287,22 @@ public class AiServiceClient {
                         case '"':
                             result.append('"');
                             break;
+                        case 'u':
+                            // 处理Unicode转义字符，如 \u4e2d\u6587
+                            if (i + 4 < jsonResponse.length()) {
+                                String hexStr = jsonResponse.substring(i + 1, i + 5);
+                                try {
+                                    int unicodeValue = Integer.parseInt(hexStr, 16);
+                                    result.append((char) unicodeValue);
+                                    i += 4; // 跳过4位十六进制数
+                                } catch (NumberFormatException e) {
+                                    // 如果解析失败，保持原样
+                                    result.append(c);
+                                }
+                            } else {
+                                result.append(c);
+                            }
+                            break;
                         default:
                             result.append(c);
                     }
@@ -331,6 +349,247 @@ public class AiServiceClient {
                     .replace("\\t", "\t")
                     .replace("\\\"", "\"")
                     .replace("\\\\", "\\");
+        } catch (Exception e) {
+            return "解析错误信息失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 请求AI修改代码（带差异比较）
+     *
+     * @param originalCode 原始代码
+     * @param instruction  修改指令
+     * @param fileName     文件名（可选）
+     * @param onSuccess    成功回调，接收差异结果
+     * @param onError      失败回调，接收错误信息
+     */
+    public void modifyCodeWithDiff(String originalCode, String instruction, String fileName,
+                                  Consumer<CodeDiffResult> onSuccess, Consumer<String> onError) {
+
+        // ========== 第1步：在后台线程执行网络请求 ==========
+        ApplicationManager.getApplication().executeOnPooledThread(() -> {
+            try {
+                // ========== 第2步：构建JSON请求体 ==========
+                String jsonBody = buildJsonRequest(originalCode, instruction, fileName);
+
+                // ========== 第3步：建立HTTP连接 ==========
+                URL url = new URL(MODIFY_CODE_WITH_DIFF_URL);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                // 设置请求方法为POST
+                connection.setRequestMethod("POST");
+
+                // 设置请求头
+                connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                connection.setRequestProperty("Accept", "application/json; charset=UTF-8");
+                connection.setRequestProperty("Accept-Charset", "UTF-8");
+
+                // 允许输出
+                connection.setDoOutput(true);
+
+                // 连接超时：5秒内必须建立连接
+                connection.setConnectTimeout(5000);
+
+                // 读取超时：60秒内必须有响应（代码修改可能需要更长时间）
+                connection.setReadTimeout(60000);
+
+                // ========== 第4步：发送请求体 ==========
+                try (OutputStreamWriter writer = new OutputStreamWriter(
+                        connection.getOutputStream(), StandardCharsets.UTF_8)) {
+                    writer.write(jsonBody);
+                    writer.flush();
+                }
+
+                // ========== 第5步：检查响应状态码 ==========
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    // ========== 第6步：读取响应 ==========
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+
+                        StringBuilder response = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            response.append(line);
+                        }
+
+                        // ========== 第7步：解析JSON响应 ==========
+                        String responseBody = response.toString();
+
+                        CodeDiffResult diffResult = parseDiffResponse(responseBody);
+
+                        if (diffResult != null) {
+                            // 成功，在UI线程调用成功回调
+                            ApplicationManager.getApplication().invokeLater(() -> onSuccess.accept(diffResult));
+                        } else {
+                            // 解析失败或返回错误
+                            String error = extractErrorFromDiffResponse(responseBody);
+                            ApplicationManager.getApplication().invokeLater(() -> onError.accept(error));
+                        }
+                    }
+                } else {
+                    // HTTP错误
+                    String error = "HTTP Error: " + responseCode;
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8))) {
+                        StringBuilder errorBody = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            errorBody.append(line);
+                        }
+                        if (errorBody.length() > 0) {
+                            error += ": " + errorBody.toString();
+                        }
+                    } catch (Exception ignored) {
+                        // 忽略读取错误流的异常
+                    }
+                    final String finalError = error;
+                    ApplicationManager.getApplication().invokeLater(() -> onError.accept(finalError));
+                }
+
+            } catch (IOException e) {
+                // ========== 第8步：异常处理 ==========
+                ApplicationManager.getApplication().invokeLater(() ->
+                        onError.accept("连接失败: " + e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * 解析差异比较的JSON响应
+     */
+    private CodeDiffResult parseDiffResponse(String jsonResponse) {
+        try {
+            // 这是一个简化的JSON解析实现
+            // 在实际项目中，应该使用Gson或Jackson等JSON库
+
+            CodeDiffResult result = new CodeDiffResult();
+
+            // 解析原始代码
+            String originalCode = extractStringValue(jsonResponse, "originalCode");
+            result.setOriginalCode(originalCode);
+
+            // 解析修改后代码
+            String modifiedCode = extractStringValue(jsonResponse, "modifiedCode");
+            result.setModifiedCode(modifiedCode);
+
+            // 调试信息：打印解析后的代码
+            System.out.println("=== 解析后的代码调试信息 ===");
+            System.out.println("原始代码长度: " + (originalCode != null ? originalCode.length() : "null"));
+            if (originalCode != null && originalCode.length() > 0) {
+                System.out.println("原始代码前50个字符: " + originalCode.substring(0, Math.min(50, originalCode.length())));
+            }
+            System.out.println("修改后代码长度: " + (modifiedCode != null ? modifiedCode.length() : "null"));
+            if (modifiedCode != null && modifiedCode.length() > 0) {
+                System.out.println("修改后代码前50个字符: " + modifiedCode.substring(0, Math.min(50, modifiedCode.length())));
+            }
+            System.out.println("========================");
+
+            // 解析状态
+            String status = extractStringValue(jsonResponse, "status");
+            if ("error".equals(status)) {
+                String error = extractStringValue(jsonResponse, "error");
+                result.setError(error);
+                return result;
+            }
+
+            // 解析指令
+            String instruction = extractStringValue(jsonResponse, "instruction");
+            result.setInstruction(instruction);
+
+            // 解析文件名
+            String fileName = extractStringValue(jsonResponse, "fileName");
+            result.setFileName(fileName);
+
+            // 解析差异块（简化实现，实际应该更复杂）
+            // 这里先返回基本的结果，差异块解析可以后续优化
+
+            return result;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 从JSON响应中提取字符串值
+     */
+    private String extractStringValue(String json, String key) {
+        try {
+            String searchKey = "\"" + key + "\":\"";
+            int startIndex = json.indexOf(searchKey);
+            if (startIndex == -1) {
+                return "";
+            }
+
+            startIndex += searchKey.length();
+
+            // 查找结束引号（需要考虑转义字符）
+            StringBuilder result = new StringBuilder();
+            boolean escaped = false;
+            for (int i = startIndex; i < json.length(); i++) {
+                char c = json.charAt(i);
+
+                if (escaped) {
+                    // 处理转义字符
+                    switch (c) {
+                        case 'n':
+                            result.append('\n');
+                            break;
+                        case 'r':
+                            result.append('\r');
+                            break;
+                        case 't':
+                            result.append('\t');
+                            break;
+                        case '\\':
+                            result.append('\\');
+                            break;
+                        case '"':
+                            result.append('"');
+                            break;
+                        case 'u':
+                            // 处理Unicode转义字符，如 \u4e2d\u6587
+                            if (i + 4 < json.length()) {
+                                String hexStr = json.substring(i + 1, i + 5);
+                                try {
+                                    int unicodeValue = Integer.parseInt(hexStr, 16);
+                                    result.append((char) unicodeValue);
+                                    i += 4; // 跳过4位十六进制数
+                                } catch (NumberFormatException e) {
+                                    // 如果解析失败，保持原样
+                                    result.append(c);
+                                }
+                            } else {
+                                result.append(c);
+                            }
+                            break;
+                        default:
+                            result.append(c);
+                    }
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    // 找到结束引号
+                    break;
+                } else {
+                    result.append(c);
+                }
+            }
+
+            return result.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /**
+     * 从差异比较的JSON响应中提取错误信息
+     */
+    private String extractErrorFromDiffResponse(String jsonResponse) {
+        try {
+            String error = extractStringValue(jsonResponse, "error");
+            return error.isEmpty() ? "未知错误" : error;
         } catch (Exception e) {
             return "解析错误信息失败: " + e.getMessage();
         }

@@ -22,8 +22,9 @@ repositories {
 dependencies {
     intellijPlatform {
         // 使用更明确的方式指定IntelliJ IDEA Community版本
-        // local("E:/Software/IntelliJ IDEA 2025.2.1")
-        intellijIdeaCommunity("2024.2.4")
+        //local("E:/Software/IntelliJ IDEA 2025.2.1")
+        local("D:/IntelliJ IDEA 2025.2.1")
+        //intellijIdeaCommunity("2024.2.4")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
         // Add necessary plugin dependencies for compilation here, example:

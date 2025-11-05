@@ -4,7 +4,7 @@
     <conf name="default" visibility="public"/>
   </configurations>
   <publications>
-    <artifact name="Software/IntelliJ IDEA 2025.2.1" ext="directory" conf="default"/>
+    <artifact name="IntelliJ IDEA 2025.2.1" ext="directory" conf="default"/>
   </publications>
   <dependencies/>
 </ivy-module>
