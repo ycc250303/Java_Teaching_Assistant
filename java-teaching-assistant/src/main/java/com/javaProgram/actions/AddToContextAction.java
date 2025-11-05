@@ -38,17 +38,39 @@ public class AddToContextAction extends AnAction {
             return;
         }
 
+        // 获取选中文本的起始和结束位置
+        int startOffset = editor.getSelectionModel().getSelectionStart();
+        int endOffset = editor.getSelectionModel().getSelectionEnd();
+        
+        // 获取对应的行号（从0开始，所以需要+1）
+        int startLine = editor.getDocument().getLineNumber(startOffset) + 1;
+        int endLine = editor.getDocument().getLineNumber(endOffset) + 1;
+
         // 获取上下文服务并添加代码
         ContextService contextService = ServiceManager.getService(project, ContextService.class);
         if (contextService != null) {
             String fileName = psiFile.getName();
-            String contextInfo = String.format("文件: %s\n\n选中的代码:\n%s", fileName, selectedText);
-            contextService.addContext(contextInfo);
+            String filePath = psiFile.getVirtualFile().getPath();
+            
+            // 创建结构化的上下文项
+            ContextService.ContextItem contextItem = new ContextService.ContextItem(
+                fileName,
+                filePath,
+                startLine,
+                endLine,
+                selectedText
+            );
+            
+            contextService.addContext(contextItem);
 
             // 显示成功消息
+            String lineInfo = startLine == endLine ? 
+                "行号: " + startLine : 
+                "行号: " + startLine + "-" + endLine;
+            
             Messages.showInfoMessage(
                 project,
-                "已成功添加到AI上下文！\n\n文件: " + fileName + "\n代码长度: " + selectedText.length() + " 字符",
+                "已成功添加到AI上下文！\n\n文件: " + fileName + "\n" + lineInfo + "\n代码长度: " + selectedText.length() + " 字符",
                 "添加成功"
             );
         } else {
