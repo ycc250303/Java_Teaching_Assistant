@@ -22,6 +22,7 @@ bin/
 gradle-app.setting
 !gradle-wrapper.jar
 !gradle-wrapper.properties
+**/build.gradle.kts
 
 # Maven
 .mvn/

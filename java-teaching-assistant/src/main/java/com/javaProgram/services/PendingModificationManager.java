@@ -17,19 +17,18 @@ public class PendingModificationManager {
     /**
      * 添加待确认的修改
      *
-     * @param project      项目
-     * @param editor       编辑器
-     * @param diffResult   差异结果
-     * @param startOffset  起始位置
-     * @param endOffset    结束位置
+     * @param project     项目
+     * @param editor      编辑器
+     * @param diffResult  差异结果
+     * @param startOffset 起始位置
+     * @param endOffset   结束位置
      * @return 修改ID
      */
     public static String addPendingModification(Project project, Editor editor, CodeDiffResult diffResult,
-                                            int startOffset, int endOffset) {
+            int startOffset, int endOffset) {
         String modificationId = UUID.randomUUID().toString();
         PendingModification modification = new PendingModification(
-                project, editor, diffResult, startOffset, endOffset
-        );
+                project, editor, diffResult, startOffset, endOffset);
         pendingModifications.put(modificationId, modification);
         return modificationId;
     }
@@ -57,8 +56,7 @@ public class PendingModificationManager {
                     modification.getDiffResult(),
                     modification.getEditor(),
                     modification.getStartOffset(),
-                    modification.getEndOffset()
-            );
+                    modification.getEndOffset());
             // 移除已处理的修改
             pendingModifications.remove(modificationId);
         }
@@ -75,8 +73,7 @@ public class PendingModificationManager {
             com.intellij.openapi.ui.Messages.showInfoMessage(
                     modification.getProject(),
                     "已取消代码修改。",
-                    "修改已取消"
-            );
+                    "修改已取消");
             // 移除已处理的修改
             pendingModifications.remove(modificationId);
         }
@@ -102,7 +99,7 @@ public class PendingModificationManager {
         private final int endOffset;
 
         public PendingModification(Project project, Editor editor, CodeDiffResult diffResult,
-                                int startOffset, int endOffset) {
+                int startOffset, int endOffset) {
             this.project = project;
             this.editor = editor;
             this.diffResult = diffResult;
@@ -111,10 +108,24 @@ public class PendingModificationManager {
         }
 
         // Getters
-        public Project getProject() { return project; }
-        public Editor getEditor() { return editor; }
-        public CodeDiffResult getDiffResult() { return diffResult; }
-        public int getStartOffset() { return startOffset; }
-        public int getEndOffset() { return endOffset; }
+        public Project getProject() {
+            return project;
+        }
+
+        public Editor getEditor() {
+            return editor;
+        }
+
+        public CodeDiffResult getDiffResult() {
+            return diffResult;
+        }
+
+        public int getStartOffset() {
+            return startOffset;
+        }
+
+        public int getEndOffset() {
+            return endOffset;
+        }
     }
 }
