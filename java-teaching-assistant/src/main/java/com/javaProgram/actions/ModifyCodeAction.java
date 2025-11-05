@@ -8,6 +8,10 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.psi.PsiFile;
 import com.javaProgram.services.AiServiceClient;
+import com.javaProgram.services.CodeDiffResult;
+import com.javaProgram.services.PendingModificationManager;
+import com.javaProgram.ui.IntelliJDiffViewer;
+import com.javaProgram.ui.ChatToolWindowFactory;
 import com.intellij.openapi.ui.DialogWrapper;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.NotNull;
@@ -69,45 +73,76 @@ public class ModifyCodeAction extends AnAction {
                 "处理中"
         );
 
-        // 调用AI服务修改代码
-        aiClient.modifyCode(
+        // 调用AI服务修改代码（带差异比较）
+        aiClient.modifyCodeWithDiff(
                 selectedText,
                 instruction.trim(),
                 fileName,
-                // onSuccess: 成功回调，将修改后的代码应用到编辑器
-                modifiedCode -> {
-                    // 在UI线程中执行文档修改
+                // onSuccess: 成功回调，显示差异对话框
+                diffResult -> {
+                    // 在UI线程中处理差异结果
                     com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(() -> {
                         try {
-                            // 使用WriteCommandAction来修改文档（这是IntelliJ Platform的要求）
-                            WriteCommandAction.runWriteCommandAction(project, () -> {
-                                Document document = editor.getDocument();
+                            // 检查是否有错误
+                            if (diffResult.hasError()) {
+                                Messages.showErrorDialog(
+                                        project,
+                                        "AI代码修改失败: " + diffResult.getError(),
+                                        "修改失败"
+                                );
+                                return;
+                            }
 
-                                // 获取选中文本的起始和结束位置
-                                int startOffset = editor.getSelectionModel().getSelectionStart();
-                                int endOffset = editor.getSelectionModel().getSelectionEnd();
+                            // 检查是否有实际变化
+                            if (!diffResult.hasChanges()) {
+                                Messages.showInfoMessage(
+                                        project,
+                                        "AI建议的代码与原代码相同，无需修改。",
+                                        "无需修改"
+                                );
+                                return;
+                            }
 
-                                // 清理代码：去除可能的markdown代码块标记
-                                String cleanedCode = cleanCode(modifiedCode);
+                            // 使用IntelliJ内置差异查看器显示差异
+                            int startOffset = editor.getSelectionModel().getSelectionStart();
+                            int endOffset = editor.getSelectionModel().getSelectionEnd();
 
-                                // 替换选中的文本为修改后的代码
-                                document.replaceString(startOffset, endOffset, cleanedCode);
-
-                                // 清除选中状态
-                                editor.getSelectionModel().removeSelection();
-                            });
-
-                            // 显示成功消息
-                            Messages.showInfoMessage(
+                            // 显示差异查看器（不等待用户确认）
+                            boolean diffShown = IntelliJDiffViewer.showDiffAndWaitForConfirmation(
                                     project,
-                                    "代码修改成功并已应用到编辑器！",
-                                    "修改成功"
+                                    diffResult,
+                                    editor,
+                                    startOffset,
+                                    endOffset
                             );
+
+                            if (diffShown) {
+                                // 将修改添加到待确认列表
+                                String modificationId = PendingModificationManager.addPendingModification(
+                                        project, editor, diffResult, startOffset, endOffset
+                                );
+
+                                // 在聊天界面添加修改完成的提示和确认选项
+                                com.javaProgram.ui.ChatToolWindowContent chatContent =
+                                        com.javaProgram.ui.ChatToolWindowFactory.getChatContent(project);
+                                if (chatContent != null) {
+                                    chatContent.addModificationConfirmationMessage(modificationId);
+                                } else {
+                                    // 如果聊天界面不可用，显示备用消息
+                                    Messages.showInfoMessage(
+                                            project,
+                                            "代码修改完成！差异对比已显示。\n" +
+                                            "请在智能助手聊天界面中确认是否应用此修改。",
+                                            "修改完成"
+                                    );
+                                }
+                            }
+
                         } catch (Exception ex) {
                             // 显示错误消息
                             Messages.showErrorDialog(
                                     project,
-                                    "应用代码修改时出错: " + ex.getMessage(),
+                                    "处理代码修改时出错: " + ex.getMessage(),
                                     "错误"
                             );
                         }

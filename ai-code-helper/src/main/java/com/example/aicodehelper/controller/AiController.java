@@ -1,6 +1,8 @@
 package com.example.aicodehelper.controller;
 
 import com.example.aicodehelper.ai.AiCodeHelperService;
+import com.example.aicodehelper.dto.CodeDiffResult;
+import com.example.aicodehelper.util.DiffUtils;
 import jakarta.annotation.Resource;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -86,6 +88,53 @@ public class AiController {
                     "error", "代码修改失败: " + e.getMessage(),
                     "status", "error"
             );
+        }
+    }
+
+    /**
+     * 代码修改接口（带差异比较）
+     * 接收代码修改请求，返回修改后的代码和差异信息
+     *
+     * @param request 包含原始代码和修改指令的请求体
+     * @return 包含差异信息的修改结果
+     */
+    @PostMapping("/modify-code-with-diff")
+    public CodeDiffResult modifyCodeWithDiff(@RequestBody Map<String, String> request) {
+        try {
+            String originalCode = request.get("originalCode");
+            String modificationInstruction = request.get("instruction");
+            String fileName = request.getOrDefault("fileName", "");
+
+            if (originalCode == null || originalCode.trim().isEmpty()) {
+                CodeDiffResult errorResult = new CodeDiffResult();
+                errorResult.setError("原始代码不能为空");
+                return errorResult;
+            }
+
+            if (modificationInstruction == null || modificationInstruction.trim().isEmpty()) {
+                CodeDiffResult errorResult = new CodeDiffResult();
+                errorResult.setError("修改指令不能为空");
+                return errorResult;
+            }
+
+            // 构建给AI的完整提示词
+            String prompt = buildModificationPrompt(originalCode, modificationInstruction, fileName);
+
+            // 调用AI服务生成修改后的代码
+            String modifiedCode = aiCodeHelperService.modifyCode(prompt);
+
+            // 清理AI返回的代码
+            String cleanedModifiedCode = DiffUtils.cleanCode(modifiedCode);
+
+            // 计算差异
+            CodeDiffResult diffResult = DiffUtils.compareCode(
+                originalCode, cleanedModifiedCode, modificationInstruction, fileName);
+
+            return diffResult;
+        } catch (Exception e) {
+            CodeDiffResult errorResult = new CodeDiffResult();
+            errorResult.setError("代码修改失败: " + e.getMessage());
+            return errorResult;
         }
     }
 

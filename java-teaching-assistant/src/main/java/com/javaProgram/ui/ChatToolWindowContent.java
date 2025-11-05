@@ -2,6 +2,7 @@ package com.javaProgram.ui;
 
 import com.javaProgram.services.AiServiceClient;
 import com.javaProgram.services.ContextService;
+import com.javaProgram.services.PendingModificationManager;
 import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
@@ -9,8 +10,11 @@ import com.intellij.util.ui.JBUI;
 import com.intellij.ui.JBColor;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import java.awt.event.KeyEvent;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 public class ChatToolWindowContent {
     private static final float DEFAULT_FONT_SIZE = 14f; // 默认字体大小
@@ -48,19 +52,16 @@ public class ChatToolWindowContent {
         return new Color(red, green, blue, color.getAlpha());
     }
 
-    // 创建用户消息气泡（右侧带框，自适应大小）
+    
+    
+    // 创建用户消息气泡（右侧，自适应大小）
     private JPanel createUserMessageBubble(String message) {
         JPanel messagePanel = new JPanel(new BorderLayout());
         messagePanel.setOpaque(false);
 
-        // 关键修复：在BoxLayout中设置正确的对齐方式
+        // 在BoxLayout中设置正确的对齐方式
         messagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         messagePanel.setAlignmentY(Component.TOP_ALIGNMENT);
-
-        // 创建左侧占位面板，给用户消息留出左边距
-        JPanel leftSpacer = new JPanel();
-        leftSpacer.setOpaque(false);
-        leftSpacer.setPreferredSize(new Dimension(JBUI.scale(50), 1)); // 固定左边距50像素
 
         // 创建右侧消息容器
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -74,24 +75,36 @@ public class ChatToolWindowContent {
 
         // 将用户标签添加到内容面板
         JLabel userLabel = new JLabel("励志学习java的小学生 🎓");
-        userLabel.setFont(JBUI.Fonts.smallFont().deriveFont(Font.BOLD));
+        userLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD));
         userLabel.setForeground(JBUI.CurrentTheme.Label.foreground());
         userLabel.setBorder(JBUI.Borders.empty(1, 12, 1, 0));
         userLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         userLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         contentPanel.add(userLabel);
 
-        // 使用原有的尺寸计算方法创建自适应大小的文本区域
+        // 使用自适应大小的圆角文本区域
         JTextArea messageText = createAutoSizingTextArea(message);
-        messageText.setOpaque(true);
-        messageText.setBackground(lightenColor(JBColor.PanelBackground, 0.05f));
+        // 设置圆角样式
+        if (messageText instanceof JTextArea) {
+            // 使用反射调用setRoundedStyle方法（因为是匿名内部类）
+            try {
+                java.lang.reflect.Method method = messageText.getClass().getMethod("setRoundedStyle", Color.class, Color.class, int.class);
+                method.invoke(messageText,
+                        lightenColor(JBColor.PanelBackground, 0.3f),  // 背景色
+                        lightenColor(JBColor.PanelBackground, 0.2f),  // 边框色
+                        JBUI.scale(8)                                    // 圆角半径8像素
+                );
+            } catch (Exception e) {
+                // 如果反射失败，使用备用方案
+                e.printStackTrace();
+            }
+        }
         messageText.setForeground(JBUI.CurrentTheme.Label.foreground());
-        messageText.setFont(JBUI.Fonts.smallFont());
-        messageText.setBorder(JBUI.Borders.compound(
-                JBUI.Borders.customLine(lightenColor(JBColor.PanelBackground, 0.2f), 1),
-                JBUI.Borders.empty(2, 4)));
+        messageText.setFont(JBUI.Fonts.label());
+        // 添加内边距（通过空边框实现）
+        messageText.setBorder(JBUI.Borders.empty(2, 4));
         messageText.setFocusable(false);
-        messageText.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
+        messageText.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
         contentPanel.add(messageText);
 
         // 添加时间标签
@@ -111,32 +124,73 @@ public class ChatToolWindowContent {
         messagePanel.setPreferredSize(new Dimension(Short.MAX_VALUE, userPreferredHeight + 80));
         messagePanel.setMaximumSize(new Dimension(Short.MAX_VALUE, userPreferredHeight + 80));
 
-        messagePanel.add(leftSpacer, BorderLayout.WEST);
         messagePanel.add(rightPanel, BorderLayout.CENTER);
-        messagePanel.setBorder(JBUI.Borders.compound(
-                JBUI.Borders.customLine(lightenColor(JBColor.PanelBackground, 0.2f), 1),
-                JBUI.Borders.empty(4, 8)));
+        // 取消最外边框，只保留内边距
+        messagePanel.setBorder(JBUI.Borders.empty(4, 8));
         return messagePanel;
     }
 
     // 为了调整用户气泡的外框高度
     private int userPreferredHeight;
 
-    // 创建自适应大小的文本区域
+    // 创建自适应大小的圆角文本区域
     private JTextArea createAutoSizingTextArea(String text) {
-        JTextArea textArea = new JTextArea();
+        // 创建圆角文本区域
+        JTextArea textArea = new JTextArea(text) {
+            private Color backgroundColor;
+            private Color borderColor;
+            private int radius;
+
+            public void setRoundedStyle(Color bgColor, Color bdrColor, int r) {
+                this.backgroundColor = bgColor;
+                this.borderColor = bdrColor;
+                this.radius = r;
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+
+                // 启用抗锯齿
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+                // 填充圆角背景
+                if (backgroundColor != null) {
+                    g2d.setColor(backgroundColor);
+                    g2d.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+                }
+
+                // 绘制圆角边框
+                if (borderColor != null) {
+                    g2d.setColor(borderColor);
+                    g2d.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+                }
+
+                g2d.dispose();
+
+                // 绘制文本
+                super.paintComponent(g);
+            }
+
+            @Override
+            public boolean isOpaque() {
+                return false; // 让背景透明，由paintComponent控制
+            }
+        };
+
+        // 设置基本属性
         textArea.setEditable(false);
         textArea.setLineWrap(true);
         textArea.setWrapStyleWord(true);
-        textArea.setText(text);
-        textArea.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
+        textArea.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
 
         // 计算文本需要的尺寸
         FontMetrics metrics = textArea.getFontMetrics(textArea.getFont());
         int lineHeight = metrics.getHeight();
 
         // 设置最大宽度为聊天区域的合适大小
-        int maxTextWidth = JBUI.scale(250); // 限制最大宽度
+        int maxTextWidth = JBUI.scale(300); // 限制最大宽度
         int minTextWidth = JBUI.scale(20); // 设置最小宽度
 
         // 估算文本需要的宽度
@@ -166,7 +220,7 @@ public class ChatToolWindowContent {
 
         // 加上内边距
         int insetsWidth = textArea.getInsets().left + textArea.getInsets().right + JBUI.scale(24);
-        int insetsHeight = textArea.getInsets().top + textArea.getInsets().bottom + JBUI.scale(16);
+        int insetsHeight = textArea.getInsets().top + textArea.getInsets().bottom + JBUI.scale(10);
 
         // 设置最终尺寸
         int preferredWidth = Math.max(minTextWidth, Math.min(maxLineLength + insetsWidth, maxTextWidth + insetsWidth));
@@ -192,7 +246,7 @@ public class ChatToolWindowContent {
 
         // AI标签
         JLabel aiLabel = new JLabel("AI小老师 👨‍🏫");
-        aiLabel.setFont(JBUI.Fonts.smallFont().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
+        aiLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
         aiLabel.setForeground(JBUI.CurrentTheme.Label.foreground());
         aiLabel.setBorder(JBUI.Borders.empty(1, 8, 1, 8));
 
@@ -203,7 +257,7 @@ public class ChatToolWindowContent {
         messageText.setWrapStyleWord(true);
         messageText.setOpaque(false);
         messageText.setForeground(JBUI.CurrentTheme.Label.foreground());
-        messageText.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
+        messageText.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
         messageText.setBorder(JBUI.Borders.empty(0, 8, 2, 8));
         messageText.setFocusable(false);
 
@@ -268,7 +322,7 @@ public class ChatToolWindowContent {
 
         // 创建思考标签
         thinkingLabel = new JLabel("AI正在思考中");
-        thinkingLabel.setFont(JBUI.Fonts.smallFont().deriveFont(Font.ITALIC, SMALL_FONT_SIZE));
+        thinkingLabel.setFont(JBUI.Fonts.label().deriveFont(Font.ITALIC, SMALL_FONT_SIZE));
         thinkingLabel.setForeground(JBUI.CurrentTheme.Label.disabledForeground());
         thinkingLabel.setBorder(JBUI.Borders.empty(4, 12, 4, 12));
 
@@ -318,7 +372,7 @@ public class ChatToolWindowContent {
         currentAiMessage.setWrapStyleWord(true);
         currentAiMessage.setOpaque(false);
         currentAiMessage.setForeground(JBUI.CurrentTheme.Label.foreground());
-        currentAiMessage.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
+        currentAiMessage.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
         currentAiMessage.setBorder(JBUI.Borders.empty(0, 8, 2, 8));
         currentAiMessage.setFocusable(false);
 
@@ -327,7 +381,7 @@ public class ChatToolWindowContent {
 
         // 创建AI标签
         JLabel aiLabel = new JLabel("AI小老师 👨‍🏫");
-        aiLabel.setFont(JBUI.Fonts.smallFont().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
+        aiLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
         aiLabel.setForeground(JBUI.CurrentTheme.Label.foreground());
         aiLabel.setBorder(JBUI.Borders.empty(0, 8, 1, 8));
 
@@ -414,6 +468,239 @@ public class ChatToolWindowContent {
             addMessageToChat(errorPanel, true);
         }
         finishAiResponse();
+    }
+
+    // 添加修改确认消息
+    public void addModificationConfirmationMessage(String modificationId) {
+        // 创建包含确认按钮的面板
+        JPanel confirmationPanel = createModificationConfirmationPanel(modificationId);
+        addMessageToChat(confirmationPanel, true);
+    }
+
+    // 创建修改确认面板
+    private JPanel createModificationConfirmationPanel(String modificationId) {
+        // 主面板 - 使用BoxLayout以确保不限制后续消息
+        JPanel wrapperPanel = new JPanel();
+        wrapperPanel.setLayout(new BoxLayout(wrapperPanel, BoxLayout.Y_AXIS));
+        wrapperPanel.setOpaque(false);
+        wrapperPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // 内部消息面板 - 固定尺寸
+        JPanel messagePanel = new JPanel(new BorderLayout());
+        messagePanel.setOpaque(false);
+        messagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        messagePanel.setAlignmentY(Component.TOP_ALIGNMENT);
+        messagePanel.setMaximumSize(new Dimension(JBUI.scale(400), JBUI.scale(120)));
+        messagePanel.setPreferredSize(new Dimension(JBUI.scale(400), JBUI.scale(120)));
+        messagePanel.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(JBColor.BLUE, 1),
+                JBUI.Borders.empty(8)
+        ));
+        messagePanel.setBackground(JBUI.CurrentTheme.ToolWindow.background());
+
+        // AI标签
+        JLabel aiLabel = new JLabel("AI小老师 👨‍🏫");
+        aiLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
+        aiLabel.setForeground(JBUI.CurrentTheme.Label.foreground());
+        aiLabel.setBorder(JBUI.Borders.empty(1, 8, 1, 8));
+
+        // 消息内容面板
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setOpaque(false);
+
+        // 消息文本
+        JTextArea messageText = new JTextArea("代码修改已完成！\n差异对比已在IntelliJ中显示。\n\n是否应用此修改？");
+        messageText.setEditable(false);
+        messageText.setLineWrap(true);
+        messageText.setWrapStyleWord(true);
+        messageText.setOpaque(false);
+        messageText.setForeground(JBUI.CurrentTheme.Label.foreground());
+        messageText.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
+        messageText.setBorder(JBUI.Borders.empty(0, 8, 8, 8));
+        messageText.setFocusable(false);
+
+        // 按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        buttonPanel.setOpaque(false);
+        buttonPanel.setBorder(JBUI.Borders.empty(0, 8, 8, 8));
+
+        // 接受按钮
+        JButton acceptButton = new JButton("✓ 接受修改");
+        acceptButton.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, MINI_FONT_SIZE));
+        acceptButton.setForeground(JBColor.GREEN);
+        acceptButton.setOpaque(false);
+        acceptButton.setContentAreaFilled(false);
+        acceptButton.setBorder(BorderFactory.createLineBorder(JBColor.GREEN, 1));
+        acceptButton.setFocusPainted(false);
+        acceptButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        // 保存原始尺寸和字体大小，用于恢复
+        final Dimension originalSize = acceptButton.getPreferredSize();
+        final Font originalFont = acceptButton.getFont();
+
+        acceptButton.addActionListener(e -> {
+            // 应用修改
+            PendingModificationManager.applyModification(modificationId);
+            // 更新消息为已接受状态 - 传递wrapperPanel而不是messagePanel
+            updateModificationStatus(wrapperPanel, "✅ 修改已成功应用到编辑器！", JBColor.GREEN);
+        });
+        acceptButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                // 颜色变深
+                acceptButton.setForeground(new Color(0,204,102));
+                acceptButton.setBorder(BorderFactory.createLineBorder(new Color(153,255,153), 1));
+                // 按钮稍微放大（通过增加字体大小实现）
+                Font largerFont = originalFont.deriveFont(Font.PLAIN, MINI_FONT_SIZE + 1);
+                acceptButton.setFont(largerFont);
+                // 重新计算并设置按钮大小
+                acceptButton.setPreferredSize(new Dimension(
+                        (int)(originalSize.width * 1.05),
+                        (int)(originalSize.height * 1.1)
+                ));
+                acceptButton.revalidate();
+            }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                // 恢复原始颜色
+                acceptButton.setForeground(JBColor.GREEN);
+                acceptButton.setBorder(BorderFactory.createLineBorder(JBColor.GREEN, 1));
+                // 恢复原始大小和字体
+                acceptButton.setFont(originalFont);
+                acceptButton.setPreferredSize(originalSize);
+                acceptButton.revalidate();
+            }
+        });
+
+        // 拒绝按钮
+        JButton rejectButton = new JButton("✗ 拒绝修改");
+        rejectButton.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, MINI_FONT_SIZE));
+        rejectButton.setForeground(JBColor.RED);
+        rejectButton.setOpaque(false);
+        rejectButton.setContentAreaFilled(false);
+        rejectButton.setBorder(BorderFactory.createLineBorder(JBColor.RED, 1));
+        rejectButton.setFocusPainted(false);
+        rejectButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        rejectButton.addActionListener(e -> {
+            // 拒绝修改
+            PendingModificationManager.rejectModification(modificationId);
+            // 更新消息为已拒绝状态 - 传递wrapperPanel而不是messagePanel
+            updateModificationStatus(wrapperPanel, "❌ 修改已取消", JBColor.RED);
+        });
+
+        rejectButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                // 颜色变深
+                rejectButton.setForeground(new Color(255,51,51));
+                rejectButton.setBorder(BorderFactory.createLineBorder(new Color(204,0,0), 1));
+                // 按钮稍微放大（通过增加字体大小实现）
+                Font largerFont = originalFont.deriveFont(Font.PLAIN, MINI_FONT_SIZE + 1);
+                rejectButton.setFont(largerFont);
+                // 重新计算并设置按钮大小
+                rejectButton.setPreferredSize(new Dimension(
+                        (int)(originalSize.width * 1.05),
+                        (int)(originalSize.height * 1.1)
+                ));
+                rejectButton.revalidate();
+            }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                // 恢复原始颜色
+                rejectButton.setForeground(JBColor.RED);
+                rejectButton.setBorder(BorderFactory.createLineBorder(JBColor.RED, 1));
+                // 恢复原始大小和字体
+                rejectButton.setFont(originalFont);
+                rejectButton.setPreferredSize(originalSize);
+                rejectButton.revalidate();
+            }
+        });
+
+        buttonPanel.add(acceptButton);
+        buttonPanel.add(Box.createHorizontalStrut(JBUI.scale(10)));
+        buttonPanel.add(rejectButton);
+
+        // 组装面板
+        contentPanel.add(messageText, BorderLayout.CENTER);
+        contentPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        messagePanel.add(aiLabel, BorderLayout.NORTH);
+        messagePanel.add(contentPanel, BorderLayout.CENTER);
+
+        // 保存按钮引用以便后续更新状态
+        messagePanel.putClientProperty("acceptButton", acceptButton);
+        messagePanel.putClientProperty("rejectButton", rejectButton);
+
+        // 将内部面板包装到外部包装器中
+        wrapperPanel.add(messagePanel);
+
+        return wrapperPanel;
+    }
+
+    // 更新修改状态
+    private void updateModificationStatus(JPanel wrapperPanel, String statusText, Color statusColor) {
+        // 获取内部消息面板
+        if (wrapperPanel.getComponentCount() > 0) {
+            Component firstComponent = wrapperPanel.getComponent(0);
+            if (firstComponent instanceof JPanel) {
+                JPanel messagePanel = (JPanel) firstComponent;
+
+                // 找到按钮面板并替换为状态标签
+                Component[] components = messagePanel.getComponents();
+                for (Component component : components) {
+                    if (component instanceof JPanel && component != messagePanel.getComponent(0)) { // 找到内容面板
+                        JPanel contentPanel = (JPanel) component;
+                        Component[] contentComponents = contentPanel.getComponents();
+
+                        // 遍历内容面板的组件
+                        for (int i = 0; i < contentComponents.length; i++) {
+                            Component contentComponent = contentComponents[i];
+
+                            // 找到按钮面板，替换为状态标签
+                            if (contentComponent instanceof JPanel) {
+                                JPanel buttonPanel = (JPanel) contentComponent;
+
+                                // 创建状态标签
+                                JLabel statusLabel = new JLabel(statusText);
+                                statusLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, SMALL_FONT_SIZE));
+                                statusLabel.setForeground(statusColor);
+                                statusLabel.setBorder(JBUI.Borders.empty(0, 8, 0, 8));
+                                statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+                                // 替换按钮面板为状态标签
+                                contentPanel.remove(i);
+                                contentPanel.add(statusLabel, BorderLayout.CENTER);
+                                break;
+                            }
+                        }
+
+                        // 更新主消息文本
+                        for (Component contentComponent : contentComponents) {
+                            if (contentComponent instanceof JTextArea) {
+                                JTextArea textArea = (JTextArea) contentComponent;
+                                textArea.setText("AI代码修改：");
+                                textArea.setForeground(JBUI.CurrentTheme.Label.foreground());
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                // 更新边框颜色以反映状态
+                messagePanel.setBorder(JBUI.Borders.compound(
+                        JBUI.Borders.customLine(statusColor, 1),
+                        JBUI.Borders.empty(8)
+                ));
+
+                // 调整面板高度以适应新内容
+                messagePanel.setPreferredSize(new Dimension(JBUI.scale(400), JBUI.scale(100)));
+                messagePanel.setMaximumSize(new Dimension(JBUI.scale(400), JBUI.scale(100)));
+
+                // 刷新显示
+                wrapperPanel.revalidate();
+                wrapperPanel.repaint();
+            }
+        }
     }
 
     // 构造函数
@@ -504,14 +791,62 @@ public class ChatToolWindowContent {
         inputScrollPane.getViewport().setBackground(inputBackgroundColor);
 
         JButton sendButton = new JButton("发送");
-        sendButton.setBackground(new JBColor(new Color(66, 133, 244), new Color(45, 100, 200))); // 支持亮色/暗色主题
-        // sendButton.setForeground(JBUI.CurrentTheme.Button.foreground());
+        sendButton.setBackground(lightenColor(ideBackgroundColor, 0.2f));
         sendButton.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, DEFAULT_FONT_SIZE));
         sendButton.setBorder(JBUI.Borders.compound(
                 JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.3f), 1),
                 JBUI.Borders.empty(8, 16)));
         // sendButton.setPreferredSize(new Dimension(JBUI.scale(80), JBUI.scale(36)));
         // // 宽80，高36
+
+        // 添加悬浮效果 - 保存原始状态
+        final Color originalBackground = sendButton.getBackground();
+        final Font originalFont = sendButton.getFont();
+        final Border originalBorder = sendButton.getBorder();
+        final Cursor originalCursor = sendButton.getCursor();
+
+        // 设置鼠标手型光标
+        sendButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // 创建状态管理器来控制悬浮效果
+        class HoverEffectController {
+            boolean isEnabled = true;
+
+            public void setEnabled(boolean enabled) {
+                this.isEnabled = enabled;
+            }
+        }
+        final HoverEffectController hoverController = new HoverEffectController();
+
+        // 添加鼠标事件监听器
+        sendButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                // 只有在悬浮效果启用且按钮可用时才显示悬浮效果
+                if (hoverController.isEnabled && sendButton.isEnabled()) {
+                    sendButton.setBackground(lightenColor(ideBackgroundColor, 0.4f)); // 背景色变深
+                    sendButton.setFont(originalFont.deriveFont(Font.BOLD, DEFAULT_FONT_SIZE + 1)); // 字体稍微放大
+                    sendButton.setBorder(JBUI.Borders.compound(
+                            JBUI.Borders.customLine(lightenColor(ideBackgroundColor, 0.5f), 1), // 边框颜色变深
+                            JBUI.Borders.empty(8, 16)
+                    ));
+                    sendButton.setCursor(new Cursor(Cursor.HAND_CURSOR)); // 确保手型光标
+                    sendButton.revalidate();
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                // 只有在悬浮效果启用时才恢复原始状态
+                if (hoverController.isEnabled) {
+                    sendButton.setBackground(originalBackground);
+                    sendButton.setFont(originalFont);
+                    sendButton.setBorder(originalBorder);
+                    sendButton.setCursor(originalCursor);
+                    sendButton.revalidate();
+                }
+            }
+        });
 
         // 使用 InputMap 和 ActionMap 处理键盘快捷键
         InputMap inputMap = inputField.getInputMap(JComponent.WHEN_FOCUSED);
@@ -546,6 +881,8 @@ public class ChatToolWindowContent {
                 inputField.setText("");
                 inputField.setEnabled(false); // 发送时禁用输入框
                 sendButton.setEnabled(false); // 禁用发送按钮
+                hoverController.setEnabled(false); // 禁用悬浮效果
+                sendButton.setCursor(new Cursor(Cursor.DEFAULT_CURSOR)); // 恢复默认光标
 
                 // 显示思考中提示
                 showThinkingIndicator();
@@ -575,6 +912,8 @@ public class ChatToolWindowContent {
                             finishAiResponse();
                             inputField.setEnabled(true); // 恢复输入框
                             sendButton.setEnabled(true); // 恢复发送按钮
+                            hoverController.setEnabled(true); // 恢复悬浮效果
+                            sendButton.setCursor(new Cursor(Cursor.HAND_CURSOR)); // 恢复手型光标
                             inputField.requestFocus();
                         },
                         // onError: 出错
@@ -583,6 +922,8 @@ public class ChatToolWindowContent {
                             addAiErrorMessage(error);
                             inputField.setEnabled(true);
                             sendButton.setEnabled(true);
+                            hoverController.setEnabled(true); // 恢复悬浮效果
+                            sendButton.setCursor(new Cursor(Cursor.HAND_CURSOR)); // 恢复手型光标
                             inputField.requestFocus();
                         });
             }
@@ -590,7 +931,7 @@ public class ChatToolWindowContent {
 
         // 创建上下文状态显示
         contextStatusLabel = new JLabel("📝 上下文: 0 项");
-        contextStatusLabel.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, MINI_FONT_SIZE));
+        contextStatusLabel.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, MINI_FONT_SIZE));
         contextStatusLabel.setForeground(JBUI.CurrentTheme.Label.disabledForeground());
         contextStatusLabel.setBorder(JBUI.Borders.empty(4, 8, 4, 8));
         contextStatusLabel.setToolTipText("显示当前已添加到AI对话的代码上下文数量\n提示：在编辑器中选中代码后右键选择'添加到AI上下文'");

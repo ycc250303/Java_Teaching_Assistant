@@ -3,10 +3,23 @@ spring:
     name: ai-code-helper
   profiles:
     active: local
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 server:
   port: 8081
   servlet:
     context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 langchain4j:
   community:
     dashscope:
