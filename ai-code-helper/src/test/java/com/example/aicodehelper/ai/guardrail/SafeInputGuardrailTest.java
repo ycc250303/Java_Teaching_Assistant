@@ -122,15 +122,24 @@ class SafeInputGuardrailTest {
     }
 
     @Test
-    @DisplayName("测试空消息")
+    @DisplayName("测试空消息和空白消息")
     void testEmptyMessage() {
-        // 创建空消息
-        UserMessage message = UserMessage.from("");
+        // 注意：UserMessage.from() 不接受空字符串
+        // Langchain4j 会抛出 IllegalArgumentException
+        // 这是框架的设计，所以我们测试这个行为
+        assertThrows(IllegalArgumentException.class, () -> {
+            UserMessage.from("");
+        }, "空字符串应该抛出 IllegalArgumentException");
 
-        // 验证空消息应该通过
-        InputGuardrailResult result = guardrail.validate(message);
+        // 测试只包含空白字符的消息
+        assertThrows(IllegalArgumentException.class, () -> {
+            UserMessage.from("   ");
+        }, "只包含空白字符应该抛出 IllegalArgumentException");
 
-        assertTrue(result.isSuccess(), "空消息应该通过验证");
+        // 测试包含换行符的空白消息
+        assertThrows(IllegalArgumentException.class, () -> {
+            UserMessage.from("\n\t  ");
+        }, "只包含空白字符应该抛出 IllegalArgumentException");
     }
 
     @Test
