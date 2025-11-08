@@ -276,25 +276,62 @@ public class ChatInputPanel extends JPanel {
     }
 
     /**
-     * 设置粘贴监听器
+     * 设置粘贴监听器（方式1：KeyBinding）
      */
     private void setupPasteListener() {
         // 监听粘贴事件（Ctrl+V）
         // 使用 WHEN_FOCUSED 确保在组件获得焦点时生效
         InputMap inputMap = inputField.getInputMap(JComponent.WHEN_FOCUSED);
         ActionMap actionMap = inputField.getActionMap();
-        
+
         // 绑定 Ctrl+V
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_V, KeyEvent.CTRL_DOWN_MASK), "paste-with-detection");
-        
-        // 添加调试日志
-        System.out.println("✅ 粘贴监听器已设置");
-        
+
         actionMap.put("paste-with-detection", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                System.out.println("🔍 粘贴监听器被触发！");
                 handlePaste();
+            }
+        });
+    }
+
+    /**
+     * 设置 TransferHandler（方式2：更可靠的粘贴拦截）
+     */
+    private void setupTransferHandler() {
+        inputField.setTransferHandler(new TransferHandler() {
+            @Override
+            public boolean canImport(TransferSupport support) {
+                // 支持字符串导入
+                return support.isDataFlavorSupported(DataFlavor.stringFlavor);
+            }
+
+            @Override
+            public boolean importData(TransferSupport support) {
+                if (!canImport(support)) {
+                    return false;
+                }
+
+                try {
+                    // 获取粘贴的文本
+                    String pastedText = (String) support.getTransferable().getTransferData(DataFlavor.stringFlavor);
+
+                    // 尝试解析为代码块
+                    CodeBlockParser.CodeBlock codeBlock = CodeBlockParser.parse(pastedText, project);
+
+                    if (codeBlock != null && codeBlock.isValid()) {
+                        // 识别为代码块，自动添加到上下文
+                        handleCodeBlockPaste(codeBlock);
+                        return true; // 阻止默认粘贴行为
+                    } else {
+                        // 不是代码块，执行默认粘贴
+                        int caretPosition = inputField.getCaretPosition();
+                        inputField.insert(pastedText, caretPosition);
+                        return true;
+                    }
+                } catch (Exception ex) {
+                    return false; // 让系统处理默认粘贴
+                }
             }
         });
     }
@@ -309,48 +346,19 @@ public class ChatInputPanel extends JPanel {
             if (transferable != null && transferable.isDataFlavorSupported(DataFlavor.stringFlavor)) {
                 String pastedText = (String) transferable.getTransferData(DataFlavor.stringFlavor);
 
-                // 🔍 调试日志：打印剪贴板内容
-                System.out.println("\n============ 粘贴内容调试 ============");
-                System.out.println("文本长度: " + pastedText.length());
-                System.out.println("前200个字符:");
-                System.out.println(pastedText.substring(0, Math.min(200, pastedText.length())));
-                System.out.println("---");
-                System.out.println("完整内容（带转义字符）:");
-                System.out.println(pastedText.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t"));
-                System.out.println("=====================================\n");
-
                 // 尝试解析为代码块
                 CodeBlockParser.CodeBlock codeBlock = CodeBlockParser.parse(pastedText, project);
 
-                System.out.println("🔍 解析结果:");
-                if (codeBlock != null) {
-                    System.out.println("  ✅ 识别为代码块");
-                    System.out.println("  - fileName: " + codeBlock.fileName);
-                    System.out.println("  - filePath: " + codeBlock.filePath);
-                    System.out.println("  - startLine: " + codeBlock.startLine);
-                    System.out.println("  - endLine: " + codeBlock.endLine);
-                    System.out.println("  - language: " + codeBlock.language);
-                    System.out.println("  - isValid: " + codeBlock.isValid());
-                    System.out.println("  - code length: " + (codeBlock.code != null ? codeBlock.code.length() : 0));
-                } else {
-                    System.out.println("  ❌ 未识别为代码块（返回 null）");
-                }
-                System.out.println("=====================================\n");
-
                 if (codeBlock != null && codeBlock.isValid()) {
                     // 识别为代码块，自动添加到上下文
-                    System.out.println("✅ 添加到上下文");
                     handleCodeBlockPaste(codeBlock);
                 } else {
                     // 不是代码块，执行普通粘贴
-                    System.out.println("❌ 执行普通粘贴");
                     inputField.paste();
                 }
             }
         } catch (Exception ex) {
             // 出错时执行普通粘贴
-            System.err.println("❌ 粘贴处理异常:");
-            ex.printStackTrace();
             inputField.paste();
         }
     }

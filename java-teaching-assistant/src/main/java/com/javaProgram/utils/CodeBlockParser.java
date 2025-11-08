@@ -59,41 +59,27 @@ public class CodeBlockParser {
      * @return 代码块信息，如果不是代码块则返回null
      */
     public static CodeBlock parse(String text, Project project) {
-        System.out.println("\n🔍 CodeBlockParser.parse() 开始解析...");
-
         if (text == null || text.trim().isEmpty()) {
-            System.out.println("  ❌ 文本为空或null");
             return null;
         }
 
         // 1. 尝试匹配 IntelliJ IDEA 格式（带完整路径）
-        System.out.println("  1️⃣ 尝试 IntelliJ 格式匹配...");
         Matcher intellijMatcher = INTELLIJ_PATTERN.matcher(text);
         if (intellijMatcher.find()) {
-            System.out.println("    ✅ IntelliJ 格式匹配成功！");
             return parseIntelliJFormat(intellijMatcher);
         }
-        System.out.println("    ❌ IntelliJ 格式不匹配");
 
         // 2. 尝试匹配简单文件名格式
-        System.out.println("  2️⃣ 尝试简单文件名格式匹配...");
         Matcher simpleMatcher = SIMPLE_FILE_PATTERN.matcher(text);
         if (simpleMatcher.find()) {
-            System.out.println("    ✅ 简单格式匹配成功！");
             return parseSimpleFormat(simpleMatcher);
         }
-        System.out.println("    ❌ 简单格式不匹配");
 
         // 3. 启发式判断是否为代码（没有文件路径的纯代码）
-        System.out.println("  3️⃣ 启发式判断是否为代码...");
-        boolean isCode = isLikelyCode(text);
-        System.out.println("    isLikelyCode = " + isCode);
-        if (isCode) {
-            System.out.println("    ✅ 识别为纯代码");
+        if (isLikelyCode(text)) {
             return parseRawCode(text);
         }
 
-        System.out.println("  ❌ 所有匹配方式都失败，返回 null");
         return null;
     }
 
