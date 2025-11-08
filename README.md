@@ -3,74 +3,32 @@
 
 ## 项目结构说明
 
-### java-teaching-assistant - IntelliJ IDEA 插件项目
+本项目包含两个主要部分：
 
-该目录是一个 IntelliJ IDEA 插件项目（使用 Gradle 构建），实现了 Java 课程助教功能。
+### 📦 项目组成
 
-重要子文件夹及作用：
+1. **java-teaching-assistant** - IntelliJ IDEA 插件项目
+   - 使用 Gradle 构建
+   - 提供聊天界面、代码上下文管理、智能代码修改等功能
+   - 共 21 个核心 Java 文件
 
-- `src/main/java` - 存放插件的 Java 源代码
-  - `com/javaProgram/actions` - 插件操作类
-    - `AddToContextAction.java` - 添加代码到 AI 上下文的操作
-    - `AskQuestionAboutCodeAction.java` - 针对选中代码提问的操作
-    - `ModifyCodeAction.java` - AI 修改代码的操作
-    - `ClearContextAction.java` - 清空上下文的操作
-  - `com/javaProgram/services` - 插件服务类
-    - `AiServiceClient.java` - AI 服务客户端，负责与后端通信
-    - `ContextService.java` - 上下文管理服务
-  - `com/javaProgram/ui` - 插件 UI 组件
-    - `ChatToolWindowContent.java` - 聊天工具窗口内容
-    - `ChatToolWindowFactory.java` - 聊天工具窗口工厂
+2. **ai-code-helper** - Spring Boot AI 后端服务
+   - 使用 Maven 构建
+   - 基于 Langchain4j 框架
+   - 提供 AI 对话、RAG 检索、代码修改、自主代码读取等功能
+   - 共 13 个核心 Java 文件
 
-- `src/main/resources` - 存放插件的资源配置文件
-  - `META-INF` - 插件的元数据目录
-    - `plugin.xml` - 插件的配置文件，定义插件的基本信息、操作、扩展点等
-    - `pluginIcon.svg` - 插件图标
+### 📚 详细文档
 
-### ai-code-helper - AI 编程助手后端项目
+**完整的项目结构说明（精确到每个文件）请查看：**
+👉 **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)**
 
-该目录是一个基于 Spring Boot 和 Langchain4j 的 AI 编程助手项目。
-
-重要子文件夹及作用：
-
-- `src/main/java` - 存放项目 Java 源代码
-  - `com/example/aicodehelper` - 项目的根包
-    - `AiCodeHelperApplication.java` - Spring Boot 启动类
-    - `ai` - AI 相关功能模块
-      - `AiCodeHelper.java` - AI 助手核心类
-      - `AiCodeHelperService.java` - AI 服务接口
-      - `AiCodeHelperServiceFactory.java` - AI 服务工厂类
-      - `guardrail` - AI 输入安全控制模块
-      - `listener` - AI 模型监听器配置
-      - `mcp` - 模型配置包
-      - `model` - AI 模型配置
-      - `rag` - 检索增强生成(RAG)相关配置
-      - `tools` - AI 工具类
-    - `config` - 项目配置类
-      - 包含 AI 模型配置、跨域配置等
-    - `controller` - 控制器层
-      - 处理 HTTP 请求，提供 RESTful API 接口
-
-- `src/main/resources` - 存放项目资源文件
-  - `docs` - 文档资料目录，包含课程 PDF 讲义
-    - `Lec-00-Introduction.pdf` - Java 课程介绍
-    - `Lec-01-Introduction-to-Java.pdf` - Java 入门
-    - `Lec-02-Variables-Operators-ControlFlowStatements-and-Arrays.pdf` - 变量、运算符、控制流和数组
-    - `Lec-03-Numbers-and-Strings.pdf` - 数字和字符串
-    - `Lec-04-Classes-and-Objects.pdf` - 类和对象
-    - `Lec-05-Inheritance-and-Interfaces.pdf` - 继承和接口
-    - `Lec-06-Exceptions.pdf` - 异常处理
-    - `Lec-07-Generics.pdf` - 泛型
-    - `Lec-08-Annotations-and-Reflection.pdf` - 注解和反射
-  - `system-prompt.txt` - 系统提示词，定义 AI 助手的角色和行为准则，强制要求标注信息来源
-  - `application.yml` - 模型配置文件，注意 api-key 要换成自己的
-
-- `ai-code-helper-frontend` - Vue.js 前端项目（可选的 Web 界面）
-  - `src/components` - Vue 组件
-  - `src/api` - API 调用封装
-
-- `src/test/java` - 存放测试代码
-  - `com/example/aicodehelper/ai` - AI 相关功能的测试类
+该文档包含：
+- 所有目录和文件的详细列表
+- 每个文件的职责和关键功能
+- 项目架构关系图
+- 核心功能与文件映射表
+- 技术栈总结
 
 ## 插件开发说明
 
