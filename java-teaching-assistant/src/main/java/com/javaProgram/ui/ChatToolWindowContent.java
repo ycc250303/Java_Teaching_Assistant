@@ -49,14 +49,16 @@ public class ChatToolWindowContent {
 
         // 初始化UI组件
         this.messagePanel = new ChatMessagePanel(backgroundColor);
-        this.bubbleFactory = new MessageBubbleFactory(messagePanel.getScrollPane());
-        this.inputPanel = new ChatInputPanel(backgroundColor);
+        this.bubbleFactory = new MessageBubbleFactory(messagePanel.getScrollPane(), project);
+        this.inputPanel = new ChatInputPanel(backgroundColor, project, contextService);
         this.contextDisplayPanel = new ContextDisplayPanel(contextService, project);
         this.thinkingManager = new ThinkingIndicatorManager(bubbleFactory, messagePanel);
         this.responseHandler = new AiResponseHandler(bubbleFactory, messagePanel);
 
         // 设置输入框回调
         inputPanel.setOnSendMessage(this::handleSendMessage);
+        // 设置上下文添加回调
+        inputPanel.setOnContextAdded(this::updateContextStatus);
 
         // 订阅上下文变更
         if (contextService != null) {
@@ -98,8 +100,11 @@ public class ChatToolWindowContent {
      * 处理发送消息
      */
     private void handleSendMessage(String message) {
-        // 添加用户消息
-        JPanel userBubble = bubbleFactory.createUserMessageBubble(message);
+        // 📌 在添加用户消息前，先获取当前上下文列表（因为后面会清除）
+        var contextList = contextService != null ? contextService.getContextList() : null;
+
+        // 添加用户消息（带上下文信息）
+        JPanel userBubble = bubbleFactory.createUserMessageBubble(message, contextList);
         messagePanel.addMessage(userBubble, true);
 
         // 禁用输入
@@ -110,6 +115,12 @@ public class ChatToolWindowContent {
 
         // 构建完整消息（包含上下文）
         String fullMessage = buildFullMessage(message);
+
+        // 📌 发送后清除上下文（因为已经包含在消息中了）
+        if (contextService != null) {
+            contextService.clearContext();
+            updateContextStatus();
+        }
 
         // 调用AI服务
         aiClient.sendMessage(
