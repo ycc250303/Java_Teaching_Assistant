@@ -70,8 +70,7 @@ public class ModifyCodeAction extends AnAction {
         Messages.showInfoMessage(
                 project,
                 "正在请求AI修改代码，请稍候...",
-                "处理中"
-        );
+                "处理中");
 
         // 调用AI服务修改代码（带差异比较）
         aiClient.modifyCodeWithDiff(
@@ -88,8 +87,7 @@ public class ModifyCodeAction extends AnAction {
                                 Messages.showErrorDialog(
                                         project,
                                         "AI代码修改失败: " + diffResult.getError(),
-                                        "修改失败"
-                                );
+                                        "修改失败");
                                 return;
                             }
 
@@ -98,8 +96,7 @@ public class ModifyCodeAction extends AnAction {
                                 Messages.showInfoMessage(
                                         project,
                                         "AI建议的代码与原代码相同，无需修改。",
-                                        "无需修改"
-                                );
+                                        "无需修改");
                                 return;
                             }
 
@@ -113,18 +110,16 @@ public class ModifyCodeAction extends AnAction {
                                     diffResult,
                                     editor,
                                     startOffset,
-                                    endOffset
-                            );
+                                    endOffset);
 
                             if (diffShown) {
                                 // 将修改添加到待确认列表
                                 String modificationId = PendingModificationManager.addPendingModification(
-                                        project, editor, diffResult, startOffset, endOffset
-                                );
+                                        project, editor, diffResult, startOffset, endOffset);
 
                                 // 在聊天界面添加修改完成的提示和确认选项
-                                com.javaProgram.ui.ChatToolWindowContent chatContent =
-                                        com.javaProgram.ui.ChatToolWindowFactory.getChatContent(project);
+                                com.javaProgram.ui.ChatToolWindowContent chatContent = com.javaProgram.ui.ChatToolWindowFactory
+                                        .getChatContent(project);
                                 if (chatContent != null) {
                                     chatContent.addModificationConfirmationMessage(modificationId);
                                 } else {
@@ -132,9 +127,8 @@ public class ModifyCodeAction extends AnAction {
                                     Messages.showInfoMessage(
                                             project,
                                             "代码修改完成！差异对比已显示。\n" +
-                                            "请在智能助手聊天界面中确认是否应用此修改。",
-                                            "修改完成"
-                                    );
+                                                    "请在智能助手聊天界面中确认是否应用此修改。",
+                                            "修改完成");
                                 }
                             }
 
@@ -143,8 +137,7 @@ public class ModifyCodeAction extends AnAction {
                             Messages.showErrorDialog(
                                     project,
                                     "处理代码修改时出错: " + ex.getMessage(),
-                                    "错误"
-                            );
+                                    "错误");
                         }
                     });
                 },
@@ -154,11 +147,9 @@ public class ModifyCodeAction extends AnAction {
                         Messages.showErrorDialog(
                                 project,
                                 "AI代码修改失败: " + error,
-                                "修改失败"
-                        );
+                                "修改失败");
                     });
-                }
-        );
+                });
     }
 
     /**

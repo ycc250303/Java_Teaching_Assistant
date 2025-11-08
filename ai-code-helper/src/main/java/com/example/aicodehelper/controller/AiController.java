@@ -1,6 +1,7 @@
 package com.example.aicodehelper.controller;
 
 import com.example.aicodehelper.ai.AiCodeHelperService;
+import com.example.aicodehelper.ai.tools.FileReaderTool;
 import com.example.aicodehelper.dto.CodeDiffResult;
 import com.example.aicodehelper.util.DiffUtils;
 import jakarta.annotation.Resource;
@@ -23,15 +24,29 @@ public class AiController {
     @Resource
     private AiCodeHelperService aiCodeHelperService;
 
+    @Resource
+    private FileReaderTool fileReaderTool;
+
     /**
      * 聊天接口（支持GET和POST方法）
      * GET: 参数在URL中（短消息）
      * POST: 参数在请求体中（长消息，如带代码上下文）
+     * 
+     * @param memoryId    会话ID
+     * @param message     用户消息
+     * @param projectPath 项目根目录路径（可选，用于AI自主读取代码）
      */
     @RequestMapping(value = "/chat", method = { RequestMethod.GET, RequestMethod.POST })
     public Flux<ServerSentEvent<String>> chat(
             @RequestParam int memoryId,
-            @RequestParam String message) {
+            @RequestParam String message,
+            @RequestParam(required = false) String projectPath) {
+
+        // 如果前端提供了项目路径，更新 FileReaderTool 的工作目录
+        if (projectPath != null && !projectPath.trim().isEmpty()) {
+            fileReaderTool.setProjectRootPath(projectPath);
+        }
+
         return aiCodeHelperService.chatStream(memoryId, message)
                 .map(chunk -> ServerSentEvent.<String>builder()
                         .data(chunk)

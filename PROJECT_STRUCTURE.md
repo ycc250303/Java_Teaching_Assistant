@@ -1,0 +1,403 @@
+# 项目结构详细说明
+
+本文档详细列出了 Java Teaching Assistant 项目的完整文件结构和各文件职责。
+
+---
+
+## 📂 项目概览
+
+```
+Java_Teaching_Assistant/
+├── java-teaching-assistant/     # IntelliJ IDEA 插件项目
+├── ai-code-helper/              # Spring Boot AI 后端项目
+├── README.md                     # 项目总览和快速开始指南
+├── PROJECT_STRUCTURE.md          # 本文件：详细项目结构说明
+└── AI_CODE_READING_FEATURE.md    # AI自主代码读取功能文档
+```
+
+---
+
+## 🔌 java-teaching-assistant - IntelliJ IDEA 插件项目
+
+这是一个使用 Gradle 构建的 IntelliJ IDEA 插件项目，为 Java 学习者提供智能助教功能。
+
+### 📁 根目录结构
+
+```
+java-teaching-assistant/
+├── src/                          # 源代码目录
+├── build.gradle.kts              # Gradle 构建配置文件
+├── settings.gradle.kts           # Gradle 设置文件
+├── gradle.properties             # Gradle 属性配置
+├── gradlew                       # Gradle Wrapper (Unix)
+├── gradlew.bat                   # Gradle Wrapper (Windows)
+├── README.md                     # 插件项目说明
+├── .idea/                        # IntelliJ IDEA 项目配置
+├── .gradle/                      # Gradle 缓存目录
+├── .intellijPlatform/            # IntelliJ Platform SDK
+├── build/                        # 构建输出目录
+└── gradle/                       # Gradle Wrapper 文件
+```
+
+### 📦 源代码结构 (`src/main/java/com/javaProgram/`)
+
+#### 1️⃣ **actions/** - 用户操作类
+
+用户在IDE中触发的右键菜单操作和快捷操作。
+
+| 文件名                            | 职责                   | 关键功能                                   |
+| --------------------------------- | ---------------------- | ------------------------------------------ |
+| `AddToContextAction.java`         | 添加选中代码到AI上下文 | 读取编辑器选中的代码，添加到ContextService |
+| `AskQuestionAboutCodeAction.java` | 针对选中代码提问       | 将选中代码作为上下文，打开聊天窗口         |
+| `ModifyCodeAction.java`           | 请求AI修改代码         | 发送代码到后端，接收修改建议，显示diff     |
+| `ClearContextAction.java`         | 清空上下文             | 清除所有已添加的代码上下文                 |
+
+#### 2️⃣ **services/** - 服务层
+
+核心业务逻辑和数据管理。
+
+| 文件名                            | 职责               | 关键功能                                                                                                                  |
+| --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `AiServiceClient.java`            | AI服务HTTP客户端   | - 发送聊天消息（SSE流式响应）<br>- 请求代码修改<br>- 请求带差异比较的代码修改<br>- 处理项目路径传递（用于AI自主读取代码） |
+| `ContextService.java`             | 上下文管理服务     | - 管理代码上下文列表<br>- 构建完整上下文字符串<br>- 提供上下文变更监听                                                    |
+| `PendingModificationManager.java` | 待确认修改管理器   | - 存储待用户确认的代码修改<br>- 管理修改ID和差异结果映射                                                                  |
+| `CodeDiffResult.java`             | 代码差异结果数据类 | - 封装原始代码、修改后代码<br>- 存储修改指令和文件名<br>- 提供错误信息字段                                                |
+| `HttpRequestConfig.java`          | HTTP请求配置类     | - 封装HTTP请求参数（URL、方法、超时等）<br>- 提供Builder模式构建配置                                                      |
+
+#### 3️⃣ **ui/** - 用户界面
+
+插件的图形用户界面组件。
+
+| 文件名                       | 职责             | 关键功能                                                                         |
+| ---------------------------- | ---------------- | -------------------------------------------------------------------------------- |
+| `ChatToolWindowContent.java` | 聊天窗口主控制器 | - 协调各UI组件<br>- 处理消息发送逻辑<br>- 管理AI响应流程<br>- 传递项目路径给后端 |
+| `ChatToolWindowFactory.java` | 工具窗口工厂     | - 创建聊天工具窗口<br>- 注册到IDE窗口系统                                        |
+| `IntelliJDiffViewer.java`    | 代码差异查看器   | - 使用IntelliJ内置Diff工具<br>- 显示代码修改前后对比                             |
+
+##### 📁 **ui/components/** - UI组件包
+
+可复用的UI组件。
+
+| 文件名                               | 职责               | 关键功能                                                                                                           |
+| ------------------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `ChatInputPanel.java`                | 聊天输入面板       | - 多行文本输入（自动高度调整）<br>- 发送按钮<br>- 粘贴代码块自动识别并添加到上下文<br>- Enter发送，Shift+Enter换行 |
+| `ChatMessagePanel.java`              | 聊天消息显示面板   | - 滚动显示聊天历史<br>- 自动滚动到最新消息<br>- 管理消息气泡布局                                                   |
+| `ContextDisplayPanel.java`           | 上下文显示面板     | - 显示已添加的代码上下文<br>- 可点击代码块跳转到编辑器<br>- 删除上下文项                                           |
+| `MessageBubbleFactory.java`          | 消息气泡工厂       | - 创建用户消息气泡<br>- 创建AI消息气泡<br>- 在用户气泡中显示附加的代码上下文<br>- 提供圆角边框和自适应布局         |
+| `ModificationConfirmationPanel.java` | 代码修改确认面板   | - 显示"接受"和"拒绝"按钮<br>- 触发代码修改应用或取消                                                               |
+| `ThinkingIndicatorManager.java`      | AI思考指示器管理器 | - 显示"AI正在思考..."动画<br>- 自动显示/隐藏                                                                       |
+
+##### 📁 **ui/handlers/** - 事件处理器包
+
+处理复杂的事件和响应逻辑。
+
+| 文件名                   | 职责         | 关键功能                                                                                                       |
+| ------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------- |
+| `AiResponseHandler.java` | AI响应处理器 | - 处理SSE流式响应<br>- 逐块追加AI消息<br>- 检测代码修改响应并创建确认面板<br>- 管理响应状态（idle/responding） |
+
+##### 📁 **ui/layout/** - 自定义布局包
+
+自定义的布局管理器。
+
+| 文件名            | 职责               | 关键功能                                           |
+| ----------------- | ------------------ | -------------------------------------------------- |
+| `WrapLayout.java` | 自动换行布局管理器 | - 类似FlowLayout但支持换行<br>- 用于上下文标签显示 |
+
+#### 4️⃣ **utils/** - 工具类包
+
+通用工具方法和辅助类。
+
+| 文件名                    | 职责         | 关键功能                                                                                                                  |
+| ------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `CodeBlockParser.java`    | 代码块解析器 | - 解析粘贴的文本<br>- 识别IntelliJ代码格式（文件路径+行号）<br>- 提取文件路径、行号、代码内容<br>- 启发式判断是否为代码   |
+| `CodeNavigationUtil.java` | 代码导航工具 | - 从文件路径跳转到编辑器<br>- 定位到指定行号<br>- 添加可点击效果（手型光标、悬停变色）<br>- 处理IntelliJ Platform线程模型 |
+| `HttpUtil.java`           | HTTP工具类   | - 统一的HTTP请求处理<br>- 流式响应读取（SSE）<br>- 完整响应读取<br>- 错误响应处理                                         |
+| `JsonUtil.java`           | JSON工具类   | - 简单的JSON解析（无第三方库依赖）<br>- JSON字符串转义<br>- 提取JSON字段值<br>- 构建JSON对象                              |
+
+### 📁 资源文件结构 (`src/main/resources/`)
+
+```
+src/main/resources/
+└── META-INF/
+    ├── plugin.xml            # 插件配置文件（定义插件信息、操作、扩展点）
+    └── pluginIcon.svg        # 插件图标
+```
+
+#### plugin.xml 关键配置
+
+- **插件元信息**：id、name、vendor、description
+- **Actions定义**：右键菜单、工具栏按钮
+- **Extension Points**：Tool Window、Services
+- **依赖项**：IntelliJ Platform模块
+
+---
+
+## 🤖 ai-code-helper - Spring Boot AI 后端项目
+
+基于 Spring Boot 和 Langchain4j 的 AI 编程助手后端服务。
+
+### 📁 根目录结构
+
+```
+ai-code-helper/
+├── src/                          # 源代码目录
+├── pom.xml                       # Maven 构建配置文件
+├── mvnw                          # Maven Wrapper (Unix)
+├── mvnw.cmd                      # Maven Wrapper (Windows)
+├── .mvn/                         # Maven Wrapper 文件
+├── target/                       # Maven 构建输出目录
+└── .gitignore                    # Git 忽略配置
+```
+
+### 📦 源代码结构 (`src/main/java/com/example/aicodehelper/`)
+
+#### 1️⃣ **根目录**
+
+| 文件名                         | 职责               | 关键功能                         |
+| ------------------------------ | ------------------ | -------------------------------- |
+| `AiCodeHelperApplication.java` | Spring Boot 启动类 | - 应用程序入口<br>- 自动配置扫描 |
+
+#### 2️⃣ **ai/** - AI核心模块
+
+##### 主要服务类
+
+| 文件名                            | 职责       | 关键功能                                                                                                               |
+| --------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `AiCodeHelperService.java`        | AI服务接口 | - 定义聊天方法<br>- 定义流式聊天方法<br>- 定义RAG聊天方法<br>- 定义代码修改方法                                        |
+| `AiCodeHelperServiceFactory.java` | AI服务工厂 | - 使用Langchain4j构建AI服务<br>- 配置聊天模型<br>- 注册工具（Tool）<br>- 配置RAG检索器<br>- 配置聊天记忆（ChatMemory） |
+
+##### 📁 **ai/guardrail/** - 输入安全控制
+
+| 文件名                    | 职责         | 关键功能                                         |
+| ------------------------- | ------------ | ------------------------------------------------ |
+| `SafeInputGuardrail.java` | 输入安全检查 | - 检测敏感词<br>- 防止注入攻击<br>- 输入内容过滤 |
+
+##### 📁 **ai/listener/** - 模型监听器
+
+| 文件名                         | 职责               | 关键功能                                             |
+| ------------------------------ | ------------------ | ---------------------------------------------------- |
+| `ChatModelListenerConfig.java` | 聊天模型监听器配置 | - 监听AI请求/响应<br>- 记录Token使用量<br>- 性能监控 |
+
+##### 📁 **ai/mcp/** - MCP工具提供者配置
+
+| 文件名           | 职责              | 关键功能                                                            |
+| ---------------- | ----------------- | ------------------------------------------------------------------- |
+| `McpConfig.java` | MCP工具提供者配置 | - 配置MCP传输层（HTTP SSE）<br>- 创建MCP客户端<br>- 提供Web搜索工具 |
+
+##### 📁 **ai/model/** - AI模型配置
+
+| 文件名                     | 职责             | 关键功能                                                                                         |
+| -------------------------- | ---------------- | ------------------------------------------------------------------------------------------------ |
+| `QwenChatModelConfig.java` | 通义千问模型配置 | - 配置API密钥<br>- 配置模型参数（温度、Top-P等）<br>- 创建聊天模型Bean<br>- 创建流式聊天模型Bean |
+
+##### 📁 **ai/rag/** - 检索增强生成
+
+| 文件名                        | 职责       | 关键功能                                                                                       |
+| ----------------------------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| `RagConfig.java`              | RAG配置类  | - 配置嵌入模型<br>- 配置嵌入存储<br>- 配置内容检索器<br>- 设置检索参数（maxResults、minScore） |
+| `EnhancedDocumentLoader.java` | 文档加载器 | - 加载PDF文档<br>- 文档分块（Chunk）<br>- 生成嵌入向量<br>- 存储到向量数据库                   |
+
+##### 📁 **ai/tools/** - AI工具类
+
+AI可以主动调用的工具（Function Calling）。
+
+| 文件名                       | 职责           | 关键功能                                                                                                                                                             |
+| ---------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `InterviewQuestionTool.java` | 面试题搜索工具 | - 从面试鸭网站爬取面试题<br>- 支持关键词搜索<br>- 返回面试题列表                                                                                                     |
+| `FileReaderTool.java`        | 文件读取工具 ⭐ | - **listProjectFiles**：列出项目目录结构<br>- **readProjectFile**：读取指定文件内容<br>- **searchCodeInProject**：搜索包含特定文本的代码<br>- 支持动态设置项目根路径 |
+
+#### 3️⃣ **config/** - 配置类
+
+| 文件名            | 职责     | 关键功能                                   |
+| ----------------- | -------- | ------------------------------------------ |
+| `CorsConfig.java` | 跨域配置 | - 允许跨域请求<br>- 配置允许的源、方法、头 |
+
+#### 4️⃣ **controller/** - 控制器层
+
+| 文件名              | 职责         | 关键功能                                                                                                                                                                                                                        |
+| ------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AiController.java` | AI接口控制器 | - `/api/ai/chat`：聊天接口（SSE流式）<br>- `/api/ai/chat-with-rag`：RAG聊天接口<br>- `/api/ai/modify-code`：代码修改接口<br>- `/api/ai/modify-code-with-diff`：带差异比较的代码修改接口<br>- 接收并设置项目路径到FileReaderTool |
+
+#### 5️⃣ **dto/** - 数据传输对象
+
+| 文件名                | 职责         | 关键功能                                                           |
+| --------------------- | ------------ | ------------------------------------------------------------------ |
+| `CodeDiffResult.java` | 代码差异结果 | - 封装原始代码和修改后代码<br>- 存储差异块列表<br>- 提供JSON序列化 |
+
+#### 6️⃣ **util/** - 工具类
+
+| 文件名           | 职责         | 关键功能                                                                |
+| ---------------- | ------------ | ----------------------------------------------------------------------- |
+| `DiffUtils.java` | 差异计算工具 | - 计算代码差异<br>- 生成差异块（DiffChunk）<br>- 提供统一格式的差异输出 |
+
+### 📁 资源文件结构 (`src/main/resources/`)
+
+```
+src/main/resources/
+├── application.yml               # Spring Boot 应用配置
+├── system-prompt.txt             # AI系统提示词
+└── docs/                         # 课程文档目录
+    ├── Lec-00-Introduction.pdf
+    ├── Lec-01-Introduction-to-Java.pdf
+    ├── Lec-02-Variables-Operators-ControlFlowStatements-and-Arrays.pdf
+    ├── Lec-03-Numbers-and-Strings.pdf
+    ├── Lec-04-Classes-and-Objects.pdf
+    ├── Lec-05-Inheritance-and-Interfaces.pdf
+    ├── Lec-06-Exceptions.pdf
+    ├── Lec-07-Generics.pdf
+    └── Lec-08-Annotations-and-Reflection.pdf
+```
+
+#### 关键配置文件说明
+
+##### application.yml
+- Spring Boot 配置
+- AI模型API密钥
+- 服务器端口（8081）
+- 向量数据库配置
+
+##### system-prompt.txt
+- AI助手角色定义
+- 行为准则和约束
+- 信息来源标注要求
+- 工具使用指导（如何使用FileReaderTool）
+
+---
+
+## 📊 架构关系图
+
+### 前端插件 → 后端服务
+
+```
+┌──────────────────────────────────────────────┐
+│  IntelliJ Plugin (java-teaching-assistant)   │
+│                                              │
+│  ┌────────────────────────────────────┐     │
+│  │ UI Layer                           │     │
+│  │  - ChatToolWindowContent           │     │
+│  │  - MessageBubbleFactory            │     │
+│  │  - ChatInputPanel                  │     │
+│  └─────────────┬──────────────────────┘     │
+│                │                             │
+│  ┌─────────────▼──────────────────────┐     │
+│  │ Service Layer                      │     │
+│  │  - AiServiceClient (HTTP)          │     │
+│  │  - ContextService                  │     │
+│  └─────────────┬──────────────────────┘     │
+│                │                             │
+│  ┌─────────────▼──────────────────────┐     │
+│  │ Utils                              │     │
+│  │  - HttpUtil                        │     │
+│  │  - JsonUtil                        │     │
+│  │  - CodeBlockParser                 │     │
+│  └────────────────────────────────────┘     │
+└───────────────┬──────────────────────────────┘
+                │ HTTP POST
+                │ (message + projectPath)
+                ▼
+┌──────────────────────────────────────────────┐
+│  Spring Boot Backend (ai-code-helper)        │
+│                                              │
+│  ┌────────────────────────────────────┐     │
+│  │ Controller Layer                   │     │
+│  │  - AiController                    │     │
+│  └─────────────┬──────────────────────┘     │
+│                │                             │
+│  ┌─────────────▼──────────────────────┐     │
+│  │ AI Service Layer                   │     │
+│  │  - AiCodeHelperService (Langchain4j)│    │
+│  └─────────────┬──────────────────────┘     │
+│                │                             │
+│  ┌─────────────▼──────────────────────┐     │
+│  │ Tools (Function Calling)           │     │
+│  │  - FileReaderTool ⭐                │     │
+│  │  - InterviewQuestionTool           │     │
+│  │  - McpToolProvider (Web Search)    │     │
+│  └─────────────┬──────────────────────┘     │
+│                │                             │
+│  ┌─────────────▼──────────────────────┐     │
+│  │ Model & RAG                        │     │
+│  │  - QwenChatModel                   │     │
+│  │  - ContentRetriever (RAG)          │     │
+│  └────────────────────────────────────┘     │
+└──────────────────────────────────────────────┘
+```
+
+---
+
+## 🔧 技术栈总结
+
+### 前端插件
+- **语言**：Java 17+
+- **框架**：IntelliJ Platform SDK
+- **UI**：Swing
+- **构建工具**：Gradle 8.x
+- **关键依赖**：
+  - IntelliJ Platform Plugin SDK
+  - JetBrains Annotations
+
+### 后端服务
+- **语言**：Java 17+
+- **框架**：Spring Boot 3.x
+- **AI框架**：Langchain4j
+- **构建工具**：Maven 3.x
+- **关键依赖**：
+  - Spring Boot Starter Web
+  - Spring Boot Starter Webflux (SSE)
+  - Langchain4j (通义千问、工具调用、RAG)
+  - Lombok
+
+---
+
+## 📝 文件数量统计
+
+### java-teaching-assistant
+- Actions: 4 个文件
+- Services: 5 个文件
+- UI Components: 6 个文件
+- UI Handlers: 1 个文件
+- UI Layout: 1 个文件
+- Utils: 4 个文件
+- **总计：21 个核心Java文件**
+
+### ai-code-helper
+- AI Core: 2 个文件
+- AI Tools: 2 个文件
+- AI Configuration: 5 个文件
+- Controllers: 1 个文件
+- Utils: 1 个文件
+- DTOs: 1 个文件
+- Config: 1 个文件
+- **总计：13 个核心Java文件**
+
+### 资源文件
+- 插件配置: 2 个文件
+- 后端配置: 2 个文件
+- 课程文档: 9 个PDF文件
+
+---
+
+## 🎯 核心功能与文件映射
+
+| 功能                 | 前端文件                                                                | 后端文件                                                   |
+| -------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **聊天对话**         | ChatToolWindowContent<br>ChatInputPanel<br>AiServiceClient              | AiController.chat<br>AiCodeHelperService                   |
+| **代码修改**         | ModifyCodeAction<br>ModificationConfirmationPanel<br>IntelliJDiffViewer | AiController.modifyCode<br>DiffUtils                       |
+| **上下文管理**       | ContextService<br>ContextDisplayPanel<br>AddToContextAction             | -                                                          |
+| **AI自主读取代码** ⭐ | AiServiceClient<br>ChatToolWindowContent                                | AiController<br>FileReaderTool                             |
+| **代码导航**         | CodeNavigationUtil<br>MessageBubbleFactory<br>ContextDisplayPanel       | -                                                          |
+| **RAG检索**          | -                                                                       | RagConfig<br>EnhancedDocumentLoader<br>ContentRetriever    |
+| **工具调用**         | -                                                                       | FileReaderTool<br>InterviewQuestionTool<br>McpToolProvider |
+
+---
+
+## 📚 相关文档
+
+- [README.md](README.md) - 项目总览和快速开始
+- [AI_CODE_READING_FEATURE.md](AI_CODE_READING_FEATURE.md) - AI自主代码读取功能详细说明
+- [功能完成情况清单.md](功能完成情况清单.md) - 功能开发进度追踪
+
+---
+
+**最后更新时间**: 2025-11-08
+

@@ -122,9 +122,11 @@ public class ChatToolWindowContent {
             updateContextStatus();
         }
 
-        // 调用AI服务
+        // 调用AI服务（传递项目路径，让AI能自主读取代码）
+        String projectPath = project.getBasePath(); // 获取项目根目录
         aiClient.sendMessage(
                 fullMessage,
+                projectPath, // 传递项目路径给后端
                 // onChunk
                 chunk -> {
                     if (responseHandler.isIdle()) {
