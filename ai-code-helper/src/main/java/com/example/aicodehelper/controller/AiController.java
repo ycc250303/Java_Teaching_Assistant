@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
@@ -22,8 +23,15 @@ public class AiController {
     @Resource
     private AiCodeHelperService aiCodeHelperService;
 
-    @GetMapping("/chat")
-    public Flux<ServerSentEvent<String>> chat(int memoryId, String message) {
+    /**
+     * 聊天接口（支持GET和POST方法）
+     * GET: 参数在URL中（短消息）
+     * POST: 参数在请求体中（长消息，如带代码上下文）
+     */
+    @RequestMapping(value = "/chat", method = { RequestMethod.GET, RequestMethod.POST })
+    public Flux<ServerSentEvent<String>> chat(
+            @RequestParam int memoryId,
+            @RequestParam String message) {
         return aiCodeHelperService.chatStream(memoryId, message)
                 .map(chunk -> ServerSentEvent.<String>builder()
                         .data(chunk)
@@ -81,13 +89,11 @@ public class AiController {
 
             return Map.of(
                     "modifiedCode", modifiedCode,
-                    "status", "success"
-            );
+                    "status", "success");
         } catch (Exception e) {
             return Map.of(
                     "error", "代码修改失败: " + e.getMessage(),
-                    "status", "error"
-            );
+                    "status", "error");
         }
     }
 
@@ -128,7 +134,7 @@ public class AiController {
 
             // 计算差异
             CodeDiffResult diffResult = DiffUtils.compareCode(
-                originalCode, cleanedModifiedCode, modificationInstruction, fileName);
+                    originalCode, cleanedModifiedCode, modificationInstruction, fileName);
 
             return diffResult;
         } catch (Exception e) {

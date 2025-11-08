@@ -33,7 +33,7 @@ public class AiServiceClient {
      * @param onError    出错时的回调
      */
     public void sendMessage(String message, Consumer<String> onChunk,
-                            Runnable onComplete, Consumer<String> onError) {
+            Runnable onComplete, Consumer<String> onError) {
 
         // ========== 第1步：在后台线程执行网络请求 ==========
         // 为什么要用后台线程？
@@ -41,36 +41,46 @@ public class AiServiceClient {
         // - IntelliJ Platform 要求不能在 EDT（事件分发线程）中执行耗时操作
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
             try {
-                // ========== 第2步：构建请求 URL ==========
-                // URL 编码：将特殊字符转换为 %XX 格式
-                // 例如：空格 → %20, 中文"你好" → %E4%BD%A0%E5%A5%BD
-                String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8);
-
-                // 拼接完整 URL：
-                // http://localhost:8081/api/ai/chat?memoryId=123&message=你好
-                String urlStr = BASE_URL + "?memoryId=" + memoryId + "&message=" + encodedMessage;
+                // ========== 第2步：构建请求 URL（不带消息参数）==========
+                // 改用 POST 方法，避免 GET URL 长度限制
+                // GET 限制：通常 2048-8192 字符
+                // POST 限制：几乎无限制（取决于服务器配置）
+                String urlStr = BASE_URL + "?memoryId=" + memoryId;
 
                 // ========== 第3步：建立 HTTP 连接 ==========
                 URL url = new URL(urlStr);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-                // 设置请求方法为 GET
-                connection.setRequestMethod("GET");
+                // 设置请求方法为 POST（而不是 GET）
+                connection.setRequestMethod("POST");
 
-                // 设置 Accept 头，告诉服务器我们接受 SSE 格式
+                // 允许向连接写入数据（POST 请求体）
+                connection.setDoOutput(true);
+
+                // 设置请求头
                 connection.setRequestProperty("Accept", "text/event-stream");
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
 
                 // 连接超时：5秒内必须建立连接
                 connection.setConnectTimeout(5000);
 
-                // 读取超时：30秒内必须有数据传输
-                connection.setReadTimeout(30000);
+                // 读取超时：60秒
+                connection.setReadTimeout(60000);
 
-                // ========== 第4步：检查响应状态码 ==========
+                // ========== 第4步：写入请求体（消息内容）==========
+                // 将消息放在 POST 请求体中，而不是 URL 参数中
+                String postData = "message=" + URLEncoder.encode(message, StandardCharsets.UTF_8);
+                try (OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream(),
+                        StandardCharsets.UTF_8)) {
+                    writer.write(postData);
+                    writer.flush();
+                }
+
+                // ========== 第5步：检查响应状态码 ==========
                 if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
                     // HTTP 200 - 成功
 
-                    // ========== 第5步：读取流式响应 ==========
+                    // ========== 第6步：读取流式响应 ==========
                     // BufferedReader 用于逐行读取数据
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
@@ -84,7 +94,7 @@ public class AiServiceClient {
                                 String data = line.substring(5).trim();
 
                                 if (!data.isEmpty()) {
-                                    // ========== 第6步：在 UI 线程更新界面 ==========
+                                    // ========== 第7步：在 UI 线程更新界面 ==========
                                     // 为什么要切换到 UI 线程？
                                     // - Swing 组件不是线程安全的
                                     // - 必须在 EDT 线程中操作 UI 组件
@@ -94,7 +104,7 @@ public class AiServiceClient {
                             }
                         }
 
-                        // ========== 第7步：完成回调 ==========
+                        // ========== 第8步：完成回调 ==========
                         // 所有数据接收完毕，在 UI 线程调用完成回调
                         ApplicationManager.getApplication().invokeLater(onComplete);
                     }
@@ -105,7 +115,7 @@ public class AiServiceClient {
                 }
 
             } catch (IOException e) {
-                // ========== 第8步：异常处理 ==========
+                // ========== 第9步：异常处理 ==========
                 // 捕获所有 IO 异常（网络错误、超时等）
                 ApplicationManager.getApplication().invokeLater(() -> onError.accept("连接失败: " + e.getMessage()));
             }
@@ -122,7 +132,7 @@ public class AiServiceClient {
      * @param onError      失败回调，接收错误信息
      */
     public void modifyCode(String originalCode, String instruction, String fileName,
-                           Consumer<String> onSuccess, Consumer<String> onError) {
+            Consumer<String> onSuccess, Consumer<String> onError) {
 
         // ========== 第1步：在后台线程执行网络请求 ==========
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
@@ -207,8 +217,7 @@ public class AiServiceClient {
 
             } catch (IOException e) {
                 // ========== 第8步：异常处理 ==========
-                ApplicationManager.getApplication().invokeLater(() ->
-                        onError.accept("连接失败: " + e.getMessage()));
+                ApplicationManager.getApplication().invokeLater(() -> onError.accept("连接失败: " + e.getMessage()));
             }
         });
     }
@@ -364,7 +373,7 @@ public class AiServiceClient {
      * @param onError      失败回调，接收错误信息
      */
     public void modifyCodeWithDiff(String originalCode, String instruction, String fileName,
-                                  Consumer<CodeDiffResult> onSuccess, Consumer<String> onError) {
+            Consumer<CodeDiffResult> onSuccess, Consumer<String> onError) {
 
         // ========== 第1步：在后台线程执行网络请求 ==========
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
@@ -449,8 +458,7 @@ public class AiServiceClient {
 
             } catch (IOException e) {
                 // ========== 第8步：异常处理 ==========
-                ApplicationManager.getApplication().invokeLater(() ->
-                        onError.accept("连接失败: " + e.getMessage()));
+                ApplicationManager.getApplication().invokeLater(() -> onError.accept("连接失败: " + e.getMessage()));
             }
         });
     }

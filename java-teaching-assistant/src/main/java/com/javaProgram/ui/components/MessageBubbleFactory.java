@@ -1,13 +1,17 @@
 package com.javaProgram.ui.components;
 
+import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
+import com.javaProgram.services.ContextService;
+import com.javaProgram.utils.CodeNavigationUtil;
 
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
 
 import java.awt.*;
+import java.util.List;
 
 /**
  * 消息气泡工厂类
@@ -20,6 +24,7 @@ public class MessageBubbleFactory {
 
     private int userPreferredHeight;
     private JBScrollPane chatScrollPane;
+    private Project project;
 
     /**
      * 圆角边框 - 内部类实现
@@ -64,14 +69,25 @@ public class MessageBubbleFactory {
         }
     }
 
-    public MessageBubbleFactory(JBScrollPane chatScrollPane) {
+    public MessageBubbleFactory(JBScrollPane chatScrollPane, Project project) {
         this.chatScrollPane = chatScrollPane;
+        this.project = project;
     }
 
     /**
      * 创建用户消息气泡（右侧带框，自适应大小）
      */
     public JPanel createUserMessageBubble(String message) {
+        return createUserMessageBubble(message, null);
+    }
+
+    /**
+     * 创建用户消息气泡（带上下文信息）
+     * 
+     * @param message      用户消息文本
+     * @param contextItems 上下文列表（可为null）
+     */
+    public JPanel createUserMessageBubble(String message, List<ContextService.ContextItem> contextItems) {
         JPanel messagePanel = new JPanel(new BorderLayout());
         messagePanel.setOpaque(false);
 
@@ -88,10 +104,14 @@ public class MessageBubbleFactory {
         rightPanel.setOpaque(false);
         rightPanel.setMaximumSize(new Dimension(Short.MAX_VALUE, Short.MAX_VALUE));
 
-        // 创建内容面板
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        // 创建内容面板（使用 BorderLayout 以固定时间位置）
+        JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.setOpaque(false);
+
+        // 创建消息内容容器（包含消息文本和上下文标签）
+        JPanel messageContentPanel = new JPanel();
+        messageContentPanel.setLayout(new BoxLayout(messageContentPanel, BoxLayout.Y_AXIS));
+        messageContentPanel.setOpaque(false);
 
         // 消息文本
         JTextArea messageText = createAutoSizingTextArea(message);
@@ -109,17 +129,29 @@ public class MessageBubbleFactory {
 
         messageText.setFocusable(true);
         messageText.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
-        contentPanel.add(messageText);
+        messageContentPanel.add(messageText);
 
-        // 时间标签
+        // 如果有上下文，添加上下文标签
+        if (contextItems != null && !contextItems.isEmpty()) {
+            JPanel contextTagsPanel = createContextTagsPanel(contextItems);
+            messageContentPanel.add(Box.createVerticalStrut(JBUI.scale(4)));
+            messageContentPanel.add(contextTagsPanel);
+        }
+
+        contentPanel.add(messageContentPanel, BorderLayout.CENTER);
+
+        // 时间标签容器（固定在右下角）
+        JPanel timePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        timePanel.setOpaque(false);
+
         JLabel timeLabel = new JLabel(
                 java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")));
         timeLabel.setFont(JBUI.Fonts.miniFont());
         timeLabel.setForeground(JBUI.CurrentTheme.Label.disabledForeground());
-        timeLabel.setBorder(JBUI.Borders.empty(4, 4, 2, 0));
-        timeLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
-        timeLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        contentPanel.add(timeLabel);
+        timeLabel.setBorder(JBUI.Borders.empty(4, 4, 2, 4));
+
+        timePanel.add(timeLabel);
+        contentPanel.add(timePanel, BorderLayout.SOUTH);
 
         rightPanel.add(contentPanel);
 
@@ -131,6 +163,71 @@ public class MessageBubbleFactory {
         messagePanel.setBorder(JBUI.Borders.empty(2, 8));
 
         return messagePanel;
+    }
+
+    /**
+     * 创建上下文标签面板
+     */
+    private JPanel createContextTagsPanel(List<ContextService.ContextItem> contextItems) {
+        JPanel tagsPanel = new JPanel();
+        tagsPanel.setLayout(new BoxLayout(tagsPanel, BoxLayout.Y_AXIS));
+        tagsPanel.setOpaque(false);
+        tagsPanel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+
+        for (ContextService.ContextItem item : contextItems) {
+            JPanel tagPanel = createContextTag(item);
+            tagsPanel.add(tagPanel);
+            if (contextItems.indexOf(item) < contextItems.size() - 1) {
+                tagsPanel.add(Box.createVerticalStrut(JBUI.scale(2)));
+            }
+        }
+
+        return tagsPanel;
+    }
+
+    /**
+     * 创建单个上下文标签
+     */
+    private JPanel createContextTag(ContextService.ContextItem item) {
+        JPanel tagPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, JBUI.scale(4), 0));
+        tagPanel.setOpaque(false);
+
+        // 📎 图标
+        JLabel iconLabel = new JLabel("📎");
+        iconLabel.setFont(JBUI.Fonts.miniFont());
+        tagPanel.add(iconLabel);
+
+        // 文件名和行号信息
+        StringBuilder tagText = new StringBuilder();
+        tagText.append(item.getFileName());
+
+        if (item.getStartLine() > 0 && item.getEndLine() > 0) {
+            tagText.append(" (").append(item.getStartLine())
+                    .append("-").append(item.getEndLine()).append("行)");
+        }
+
+        JLabel textLabel = new JLabel(tagText.toString());
+        textLabel.setFont(JBUI.Fonts.miniFont());
+
+        // 设置默认颜色
+        Color defaultColor = new JBColor(new Color(102, 102, 102), new Color(153, 153, 153));
+        Color hoverColor = new JBColor(new Color(0, 120, 215), new Color(100, 149, 237));
+        textLabel.setForeground(defaultColor);
+
+        // 添加可点击效果（悬停变色 + 手型光标）
+        CodeNavigationUtil.addClickableEffect(textLabel, defaultColor, hoverColor);
+
+        // 添加点击事件 - 跳转到代码位置
+        textLabel.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                CodeNavigationUtil.navigateToCode(project, item, tagPanel);
+            }
+        });
+
+        tagPanel.add(textLabel);
+
+        return tagPanel;
     }
 
     /**

@@ -1,15 +1,12 @@
 package com.javaProgram.ui.components;
 
-import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vfs.LocalFileSystem;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 import com.javaProgram.services.ContextService;
 import com.javaProgram.ui.layout.WrapLayout;
+import com.javaProgram.utils.CodeNavigationUtil;
 
 import javax.swing.*;
 import java.awt.*;
@@ -103,26 +100,20 @@ public class ContextDisplayPanel extends JPanel {
 
         JLabel textLabel = new JLabel(displayText);
         textLabel.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, MINI_FONT_SIZE));
-        textLabel.setForeground(JBUI.CurrentTheme.Label.foreground());
-        textLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        // 设置默认颜色
+        Color defaultColor = JBUI.CurrentTheme.Label.foreground();
+        Color hoverColor = new JBColor(new Color(0, 120, 215), new Color(100, 149, 237));
+        textLabel.setForeground(defaultColor);
+
+        // 添加可点击效果（悬停变色 + 手型光标）
+        CodeNavigationUtil.addClickableEffect(textLabel, defaultColor, hoverColor);
 
         // 为文本标签添加点击事件 - 跳转到代码位置
         textLabel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                navigateToCode(item);
-            }
-
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                // 鼠标悬停时文字变色
-                textLabel.setForeground(new JBColor(new Color(0, 120, 215), new Color(100, 149, 237)));
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                // 鼠标离开恢复原色
-                textLabel.setForeground(JBUI.CurrentTheme.Label.foreground());
+                CodeNavigationUtil.navigateToCode(project, item, ContextDisplayPanel.this);
             }
         });
 
@@ -173,46 +164,6 @@ public class ContextDisplayPanel extends JPanel {
         chip.add(contentPanel, BorderLayout.CENTER);
 
         return chip;
-    }
-
-    /**
-     * 导航到代码位置
-     */
-    private void navigateToCode(ContextService.ContextItem item) {
-        if (project == null || item.getFilePath() == null || item.getFilePath().isEmpty()) {
-            return;
-        }
-
-        // 在EDT线程外执行文件操作
-        SwingUtilities.invokeLater(() -> {
-            try {
-                // 获取虚拟文件
-                VirtualFile virtualFile = LocalFileSystem.getInstance().findFileByPath(item.getFilePath());
-
-                if (virtualFile != null && virtualFile.exists()) {
-                    // 计算跳转的行号（从0开始）
-                    int line = Math.max(0, item.getStartLine() - 1);
-
-                    // 打开文件并跳转到指定行
-                    OpenFileDescriptor descriptor = new OpenFileDescriptor(project, virtualFile, line, 0);
-                    FileEditorManager.getInstance(project).openTextEditor(descriptor, true);
-                } else {
-                    // 文件不存在，显示提示
-                    JOptionPane.showMessageDialog(
-                            this,
-                            "无法找到文件: " + item.getFilePath(),
-                            "文件未找到",
-                            JOptionPane.WARNING_MESSAGE);
-                }
-            } catch (Exception e) {
-                // 处理异常
-                JOptionPane.showMessageDialog(
-                        this,
-                        "打开文件时出错: " + e.getMessage(),
-                        "错误",
-                        JOptionPane.ERROR_MESSAGE);
-            }
-        });
     }
 
     /**
