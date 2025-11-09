@@ -12,6 +12,8 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+  jackson:
+    default-property-inclusion: non_null  # 排除null值，避免前端误判为错误
 server:
   port: 8081
   servlet:
@@ -25,12 +27,12 @@ langchain4j:
     dashscope:
       chat-model:
         model-name: qwen-max
-        api-key: sk-fc52d9f1bc22437396694a03c1813091 # 通义千问的 key
+        api-key: sk-d1cd60a55bd24eae942ba77605c9114c # 通义千问的 key
       streaming-chat-model:
         model-name: qwen-max
-        api-key: sk-fc52d9f1bc22437396694a03c1813091 # 通义千问的 key
+        api-key: sk-d1cd60a55bd24eae942ba77605c9114c # 通义千问的 key
       embedding-model:
         model-name: text-embedding-v4
-        api-key: sk-fc52d9f1bc22437396694a03c1813091 # 通义千问的 key
+        api-key: sk-d1cd60a55bd24eae942ba77605c9114c # 通义千问的 key
 bigmodel:
   api-key: 328904f8a42b41deaf4f951ed3abd86a.h3oVYYCDZfvm80hI # 智谱的 key
