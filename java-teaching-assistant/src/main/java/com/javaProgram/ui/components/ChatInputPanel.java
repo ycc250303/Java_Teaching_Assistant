@@ -5,14 +5,15 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 import com.intellij.ui.JBColor;
 import com.javaProgram.services.ContextService;
-import com.javaProgram.utils.CodeBlockParser;
+import com.javaProgram.ui.components.handlers.CodeBlockPasteHandler;
+import com.javaProgram.ui.components.handlers.FileDropHandler;
+import com.javaProgram.ui.components.handlers.InputHintManager;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.Transferable;
 import java.awt.event.KeyEvent;
 import java.util.function.Consumer;
-import javax.swing.TransferHandler;
 
 /**
  * 聊天输入面板
@@ -25,8 +26,15 @@ public class ChatInputPanel extends JPanel {
     private final int defaultHeight;
     private final Project project;
     private final ContextService contextService;
-    private Consumer<String> onSendMessage; // 发送消息回调
-    private Runnable onContextAdded; // 上下文添加回调
+
+    // 处理器
+    private final FileDropHandler fileDropHandler;
+    private final CodeBlockPasteHandler codeBlockPasteHandler;
+    private final InputHintManager hintManager;
+
+    // 回调
+    private Consumer<String> onSendMessage;
+    private Runnable onContextAdded;
 
     public ChatInputPanel(Color backgroundColor, Project project, ContextService contextService) {
         this.project = project;
@@ -54,27 +62,24 @@ public class ChatInputPanel extends JPanel {
         add(container, BorderLayout.CENTER);
         setBorder(JBUI.Borders.empty(4));
 
+        // 初始化处理器
+        hintManager = new InputHintManager(inputField);
+        fileDropHandler = new FileDropHandler(project, contextService,
+                hintManager::showErrorHint, this::notifyContextAdded);
+        codeBlockPasteHandler = new CodeBlockPasteHandler(project, contextService,
+                hintManager::showErrorHint, this::notifyContextAdded);
+
         // 设置快捷键
         setupKeyBindings();
 
-        // 设置粘贴监听器（两种方式：KeyBinding + TransferHandler）
+        // 设置粘贴监听器
         setupPasteListener();
+
+        // 设置拖拽和粘贴处理器
         setupTransferHandler();
 
         // 监听文本变化，动态调整高度
-        inputField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                SwingUtilities.invokeLater(() -> updateHeight());
-            }
-
-            public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                SwingUtilities.invokeLater(() -> updateHeight());
-            }
-
-            public void changedUpdate(javax.swing.event.DocumentEvent e) {
-                SwingUtilities.invokeLater(() -> updateHeight());
-            }
-        });
+        setupDocumentListener();
     }
 
     /**
@@ -202,6 +207,25 @@ public class ChatInputPanel extends JPanel {
     }
 
     /**
+     * 设置文档监听器
+     */
+    private void setupDocumentListener() {
+        inputField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> updateHeight());
+            }
+
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> updateHeight());
+            }
+
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                SwingUtilities.invokeLater(() -> updateHeight());
+            }
+        });
+    }
+
+    /**
      * 更新输入框高度
      */
     private void updateHeight() {
@@ -260,27 +284,9 @@ public class ChatInputPanel extends JPanel {
     }
 
     /**
-     * 设置发送消息回调
-     */
-    public void setOnSendMessage(Consumer<String> callback) {
-        this.onSendMessage = callback;
-    }
-
-    /**
-     * 设置输入框启用状态
-     */
-    public void setInputEnabled(boolean enabled) {
-        inputField.setEnabled(enabled);
-        sendButton.setEnabled(enabled);
-        sendButton.setCursor(new Cursor(enabled ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
-    }
-
-    /**
-     * 设置粘贴监听器（方式1：KeyBinding）
+     * 设置粘贴监听器
      */
     private void setupPasteListener() {
-        // 监听粘贴事件（Ctrl+V）
-        // 使用 WHEN_FOCUSED 确保在组件获得焦点时生效
         InputMap inputMap = inputField.getInputMap(JComponent.WHEN_FOCUSED);
         ActionMap actionMap = inputField.getActionMap();
 
@@ -290,154 +296,100 @@ public class ChatInputPanel extends JPanel {
         actionMap.put("paste-with-detection", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                handlePaste();
+                if (!codeBlockPasteHandler.handlePaste()) {
+                    // 如果不是代码块，执行普通粘贴
+                    inputField.paste();
+                }
             }
         });
     }
 
     /**
-     * 设置 TransferHandler（方式2：更可靠的粘贴拦截）
+     * 设置 TransferHandler（拖拽和粘贴支持）
      */
     private void setupTransferHandler() {
-        inputField.setTransferHandler(new TransferHandler() {
+        inputField.setTransferHandler(new javax.swing.TransferHandler() {
             @Override
-            public boolean canImport(TransferSupport support) {
+            public boolean canImport(javax.swing.TransferHandler.TransferSupport support) {
                 // 支持字符串导入
-                return support.isDataFlavorSupported(DataFlavor.stringFlavor);
+                if (support.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+                    return true;
+                }
+
+                // 支持文件列表拖拽（从文件系统）
+                if (support.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+                    return true;
+                }
+
+                // 支持IntelliJ的VirtualFile拖拽（从Project视图）
+                try {
+                    java.awt.datatransfer.Transferable transferable = support.getTransferable();
+                    if (transferable != null) {
+                        DataFlavor[] flavors = transferable.getTransferDataFlavors();
+                        for (DataFlavor flavor : flavors) {
+                            if (flavor.getHumanPresentableName().contains("VirtualFile") ||
+                                    flavor.getMimeType().contains("virtualfile")) {
+                                return true;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+
+                return false;
             }
 
             @Override
-            public boolean importData(TransferSupport support) {
+            public boolean importData(javax.swing.TransferHandler.TransferSupport support) {
                 if (!canImport(support)) {
                     return false;
                 }
 
                 try {
-                    // 获取粘贴的文本
-                    String pastedText = (String) support.getTransferable().getTransferData(DataFlavor.stringFlavor);
+                    java.awt.datatransfer.Transferable transferable = support.getTransferable();
 
-                    // 尝试解析为代码块
-                    CodeBlockParser.CodeBlock codeBlock = CodeBlockParser.parse(pastedText, project);
-
-                    if (codeBlock != null && codeBlock.isValid()) {
-                        // 识别为代码块，自动添加到上下文
-                        handleCodeBlockPaste(codeBlock);
-                        return true; // 阻止默认粘贴行为
-                    } else {
-                        // 不是代码块，执行默认粘贴
-                        int caretPosition = inputField.getCaretPosition();
-                        inputField.insert(pastedText, caretPosition);
+                    // 1. 优先处理文件拖拽
+                    if (fileDropHandler.handleFileDrop(transferable)) {
                         return true;
                     }
+
+                    // 2. 处理文本粘贴
+                    if (support.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+                        String pastedText = (String) transferable.getTransferData(DataFlavor.stringFlavor);
+
+                        if (codeBlockPasteHandler.handlePastedText(pastedText)) {
+                            // 识别为代码块，已添加到上下文
+                            return true;
+                        } else {
+                            // 不是代码块，执行默认粘贴
+                            int caretPosition = inputField.getCaretPosition();
+                            inputField.insert(pastedText, caretPosition);
+                            return true;
+                        }
+                    }
                 } catch (Exception ex) {
-                    return false; // 让系统处理默认粘贴
+                    return false;
                 }
+
+                return false;
             }
         });
     }
 
     /**
-     * 处理粘贴事件
+     * 通知上下文已添加
      */
-    private void handlePaste() {
-        try {
-            // 获取剪贴板内容
-            Transferable transferable = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
-            if (transferable != null && transferable.isDataFlavorSupported(DataFlavor.stringFlavor)) {
-                String pastedText = (String) transferable.getTransferData(DataFlavor.stringFlavor);
-
-                // 尝试解析为代码块
-                CodeBlockParser.CodeBlock codeBlock = CodeBlockParser.parse(pastedText, project);
-
-                if (codeBlock != null && codeBlock.isValid()) {
-                    // 识别为代码块，自动添加到上下文
-                    handleCodeBlockPaste(codeBlock);
-                } else {
-                    // 不是代码块，执行普通粘贴
-                    inputField.paste();
-                }
-            }
-        } catch (Exception ex) {
-            // 出错时执行普通粘贴
-            inputField.paste();
+    private void notifyContextAdded() {
+        if (onContextAdded != null) {
+            SwingUtilities.invokeLater(onContextAdded);
         }
     }
 
     /**
-     * 处理代码块粘贴
+     * 设置发送消息回调
      */
-    private void handleCodeBlockPaste(CodeBlockParser.CodeBlock codeBlock) {
-        if (contextService != null) {
-            // 将 CodeBlock 转换为 ContextItem
-            ContextService.ContextItem contextItem = createContextItem(codeBlock);
-
-            // 添加到上下文服务
-            contextService.addContext(contextItem);
-
-            // 通知上下文已添加（触发UI更新）
-            if (onContextAdded != null) {
-                SwingUtilities.invokeLater(onContextAdded);
-            }
-
-            // 显示提示信息
-            String displayName = codeBlock.fileName != null ? codeBlock.fileName : "代码片段";
-            showContextAddedHint(displayName);
-        }
-    }
-
-    /**
-     * 从 CodeBlock 创建 ContextItem
-     */
-    private ContextService.ContextItem createContextItem(CodeBlockParser.CodeBlock codeBlock) {
-        return new ContextService.ContextItem(
-                codeBlock.fileName != null ? codeBlock.fileName : "code_snippet",
-                codeBlock.filePath != null ? codeBlock.filePath : "",
-                codeBlock.startLine,
-                codeBlock.endLine,
-                codeBlock.code);
-    }
-
-    /**
-     * 显示上下文添加提示（2秒后自动消失）
-     */
-    private void showContextAddedHint(String fileName) {
-        String currentText = inputField.getText().trim();
-        String hintText = "✅ 已添加代码片段到上下文: " + fileName;
-
-        // 添加提示文本
-        if (!currentText.isEmpty()) {
-            inputField.setText(currentText + "\n" + hintText);
-        } else {
-            inputField.setText(hintText);
-        }
-
-        // 设置定时器清除提示
-        Timer clearTimer = new Timer(2000, e -> clearHintText());
-        clearTimer.setRepeats(false);
-        clearTimer.start();
-    }
-
-    /**
-     * 清除提示文本
-     */
-    private void clearHintText() {
-        String text = inputField.getText();
-        if (text.contains("✅ 已添加代码片段到上下文")) {
-            // 移除包含提示的行
-            String[] lines = text.split("\n");
-            StringBuilder newText = new StringBuilder();
-
-            for (String line : lines) {
-                if (!line.contains("✅ 已添加代码片段到上下文")) {
-                    if (newText.length() > 0) {
-                        newText.append("\n");
-                    }
-                    newText.append(line);
-                }
-            }
-
-            inputField.setText(newText.toString().trim());
-        }
+    public void setOnSendMessage(Consumer<String> callback) {
+        this.onSendMessage = callback;
     }
 
     /**
@@ -445,6 +397,15 @@ public class ChatInputPanel extends JPanel {
      */
     public void setOnContextAdded(Runnable callback) {
         this.onContextAdded = callback;
+    }
+
+    /**
+     * 设置输入框启用状态
+     */
+    public void setInputEnabled(boolean enabled) {
+        inputField.setEnabled(enabled);
+        sendButton.setEnabled(enabled);
+        sendButton.setCursor(new Cursor(enabled ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
     }
 
     /**

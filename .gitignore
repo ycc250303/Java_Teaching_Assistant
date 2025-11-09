@@ -4,6 +4,7 @@
 # Ignore application configuration files with sensitive information
 **/application.yml
 **/application-*.yml
+application.yml
 
 # IntelliJ IDEA
 .idea/
