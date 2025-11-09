@@ -46,10 +46,11 @@ public class JsonUtil {
 
                 if (escaped) {
                     // 处理转义字符
-                    result.append(unescapeChar(c, json, i));
-                    // Unicode转义需要跳过额外字符
+                    String unescaped = unescapeChar(c, json, i);
+                    result.append(unescaped);
+                    // Unicode转义需要跳过额外字符（格式：反斜杠u加4个十六进制数字）
                     if (c == 'u' && i + 4 < json.length()) {
-                        i += 4;
+                        i += 4; // 跳过4个十六进制字符
                     }
                     escaped = false;
                 } else if (c == '\\') {
@@ -132,8 +133,14 @@ public class JsonUtil {
      * 检查JSON响应是否表示错误
      */
     public static boolean isErrorResponse(String json) {
-        return json.contains("\"status\":\"error\"") ||
-                json.contains("\"error\":");
+        // 只有当 status 明确为 "error" 时才认为是错误响应
+        if (json.contains("\"status\":\"error\"")) {
+            return true;
+        }
+
+        // 检查 error 字段是否有实际内容（不是 null 或空字符串）
+        String errorValue = extractStringValue(json, "error");
+        return errorValue != null && !errorValue.trim().isEmpty() && !"null".equals(errorValue);
     }
 
     /**
@@ -141,6 +148,6 @@ public class JsonUtil {
      */
     public static String extractError(String json) {
         String error = extractStringValue(json, "error");
-        return error.isEmpty() ? "未知错误" : error;
+        return (error == null || error.isEmpty()) ? "未知错误" : error;
     }
 }

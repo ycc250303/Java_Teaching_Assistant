@@ -105,17 +105,18 @@ public class ModifyCodeAction extends AnAction {
                             int endOffset = editor.getSelectionModel().getSelectionEnd();
 
                             // 显示差异查看器（不等待用户确认）
-                            boolean diffShown = IntelliJDiffViewer.showDiffAndWaitForConfirmation(
-                                    project,
-                                    diffResult,
-                                    editor,
-                                    startOffset,
-                                    endOffset);
+                            com.intellij.openapi.vfs.VirtualFile diffViewerFile = IntelliJDiffViewer
+                                    .showDiffAndWaitForConfirmation(
+                                            project,
+                                            diffResult,
+                                            editor,
+                                            startOffset,
+                                            endOffset);
 
-                            if (diffShown) {
+                            if (diffViewerFile != null) {
                                 // 将修改添加到待确认列表
                                 String modificationId = PendingModificationManager.addPendingModification(
-                                        project, editor, diffResult, startOffset, endOffset);
+                                        project, editor, diffResult, startOffset, endOffset, diffViewerFile);
 
                                 // 在聊天界面添加修改完成的提示和确认选项
                                 com.javaProgram.ui.ChatToolWindowContent chatContent = com.javaProgram.ui.ChatToolWindowFactory

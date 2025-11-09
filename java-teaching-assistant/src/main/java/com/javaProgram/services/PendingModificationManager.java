@@ -1,6 +1,8 @@
 package com.javaProgram.services;
 
 import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 
 import java.util.HashMap;
@@ -17,18 +19,19 @@ public class PendingModificationManager {
     /**
      * 添加待确认的修改
      *
-     * @param project     项目
-     * @param editor      编辑器
-     * @param diffResult  差异结果
-     * @param startOffset 起始位置
-     * @param endOffset   结束位置
+     * @param project        项目
+     * @param editor         编辑器
+     * @param diffResult     差异结果
+     * @param startOffset    起始位置
+     * @param endOffset      结束位置
+     * @param diffViewerFile 差异查看器打开的文件
      * @return 修改ID
      */
     public static String addPendingModification(Project project, Editor editor, CodeDiffResult diffResult,
-            int startOffset, int endOffset) {
+            int startOffset, int endOffset, com.intellij.openapi.vfs.VirtualFile diffViewerFile) {
         String modificationId = UUID.randomUUID().toString();
         PendingModification modification = new PendingModification(
-                project, editor, diffResult, startOffset, endOffset);
+                project, editor, diffResult, startOffset, endOffset, diffViewerFile);
         pendingModifications.put(modificationId, modification);
         return modificationId;
     }
@@ -51,12 +54,17 @@ public class PendingModificationManager {
     public static void applyModification(String modificationId) {
         PendingModification modification = pendingModifications.get(modificationId);
         if (modification != null) {
+            // 关闭差异查看器
+            closeDiffViewer(modification);
+
+            // 应用修改
             com.javaProgram.ui.IntelliJDiffViewer.applyModification(
                     modification.getProject(),
                     modification.getDiffResult(),
                     modification.getEditor(),
                     modification.getStartOffset(),
                     modification.getEndOffset());
+
             // 移除已处理的修改
             pendingModifications.remove(modificationId);
         }
@@ -70,12 +78,33 @@ public class PendingModificationManager {
     public static void rejectModification(String modificationId) {
         PendingModification modification = pendingModifications.get(modificationId);
         if (modification != null) {
+            // 关闭差异查看器
+            closeDiffViewer(modification);
+
             com.intellij.openapi.ui.Messages.showInfoMessage(
                     modification.getProject(),
                     "已取消代码修改。",
                     "修改已取消");
+
             // 移除已处理的修改
             pendingModifications.remove(modificationId);
+        }
+    }
+
+    /**
+     * 关闭差异查看器
+     */
+    private static void closeDiffViewer(PendingModification modification) {
+        try {
+            com.intellij.openapi.vfs.VirtualFile diffViewerFile = modification.getDiffViewerFile();
+            if (diffViewerFile != null) {
+                Project project = modification.getProject();
+                FileEditorManager editorManager = FileEditorManager.getInstance(project);
+                editorManager.closeFile(diffViewerFile);
+            }
+        } catch (Exception e) {
+            // 忽略关闭差异查看器时的异常，不影响主流程
+            System.err.println("关闭差异查看器时出错: " + e.getMessage());
         }
     }
 
@@ -97,14 +126,16 @@ public class PendingModificationManager {
         private final CodeDiffResult diffResult;
         private final int startOffset;
         private final int endOffset;
+        private final com.intellij.openapi.vfs.VirtualFile diffViewerFile;
 
         public PendingModification(Project project, Editor editor, CodeDiffResult diffResult,
-                int startOffset, int endOffset) {
+                int startOffset, int endOffset, com.intellij.openapi.vfs.VirtualFile diffViewerFile) {
             this.project = project;
             this.editor = editor;
             this.diffResult = diffResult;
             this.startOffset = startOffset;
             this.endOffset = endOffset;
+            this.diffViewerFile = diffViewerFile;
         }
 
         // Getters
@@ -126,6 +157,10 @@ public class PendingModificationManager {
 
         public int getEndOffset() {
             return endOffset;
+        }
+
+        public com.intellij.openapi.vfs.VirtualFile getDiffViewerFile() {
+            return diffViewerFile;
         }
     }
 }
