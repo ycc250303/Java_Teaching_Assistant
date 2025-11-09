@@ -53,6 +53,43 @@ public class ThinkingIndicatorManager {
     }
 
     /**
+     * 更新思考提示消息
+     * 
+     * @param message 新的提示消息
+     */
+    public void updateMessage(String message) {
+        if (thinkingPanel != null) {
+            JTextArea thinkingText = (JTextArea) thinkingPanel.getClientProperty("thinkingText");
+
+            if (thinkingText == null) {
+                // 兼容旧版本
+                thinkingText = (JTextArea) thinkingPanel.getClientProperty("thinkingLabel");
+            }
+
+            if (thinkingText != null) {
+                final JTextArea finalThinkingText = thinkingText;
+                final String baseMessage = message;
+
+                // 停止旧的动画
+                if (thinkingTimer != null && thinkingTimer.isRunning()) {
+                    thinkingTimer.stop();
+                }
+
+                // 创建新的动画
+                StringBuilder dots = new StringBuilder(".");
+                thinkingTimer = new Timer(500, e -> {
+                    dots.append(".");
+                    if (dots.length() > 3) {
+                        dots.setLength(1);
+                    }
+                    finalThinkingText.setText(baseMessage + dots.toString());
+                });
+                thinkingTimer.start();
+            }
+        }
+    }
+
+    /**
      * 隐藏思考提示
      */
     public void hide() {

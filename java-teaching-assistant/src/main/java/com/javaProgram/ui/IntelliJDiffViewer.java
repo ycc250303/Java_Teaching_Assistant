@@ -101,6 +101,54 @@ public class IntelliJDiffViewer {
     }
 
     /**
+     * 显示差异对话框（从聊天界面调用）
+     * 仅展示差异，不涉及应用修改
+     *
+     * @param project    当前项目
+     * @param diffResult 差异结果
+     */
+    public static void showDiffDialog(
+            @NotNull Project project,
+            @NotNull CodeDiffResult diffResult) {
+
+        try {
+            // 检查是否有实际变化
+            if (!diffResult.hasChanges()) {
+                Messages.showInfoMessage(
+                        project,
+                        "代码没有变化。",
+                        "无变化");
+                return;
+            }
+
+            // 创建差异内容
+            DiffContentFactory contentFactory = DiffContentFactory.getInstance();
+
+            DiffContent originalContent = contentFactory.create(
+                    diffResult.getOriginalCode() != null ? diffResult.getOriginalCode() : "");
+            DiffContent modifiedContent = contentFactory.create(
+                    diffResult.getModifiedCode() != null ? diffResult.getModifiedCode() : "");
+
+            // 创建差异请求
+            SimpleDiffRequest diffRequest = new SimpleDiffRequest(
+                    "AI代码修改预览 - " + (diffResult.getFileName() != null ? diffResult.getFileName() : "代码"),
+                    originalContent,
+                    modifiedContent,
+                    "原始代码",
+                    "修改后代码");
+
+            // 使用IntelliJ的内置差异查看器显示差异
+            DiffManager.getInstance().showDiff(project, diffRequest);
+
+        } catch (Exception e) {
+            Messages.showErrorDialog(
+                    project,
+                    "显示差异对比时出错: " + e.getMessage(),
+                    "错误");
+        }
+    }
+
+    /**
      * 应用修改到编辑器（从聊天界面调用）
      *
      * @param project     当前项目
@@ -123,11 +171,6 @@ public class IntelliJDiffViewer {
                 document.replaceString(startOffset, endOffset, diffResult.getModifiedCode());
                 editor.getSelectionModel().removeSelection();
             });
-
-            Messages.showInfoMessage(
-                    project,
-                    "代码修改成功并已应用到编辑器！",
-                    "修改成功");
 
         } catch (Exception e) {
             Messages.showErrorDialog(

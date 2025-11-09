@@ -113,6 +113,204 @@ public class ChatToolWindowContent {
         // 显示思考提示
         thinkingManager.show();
 
+        // 判断用户意图：是否需要修改代码
+        boolean isModifyIntent = detectModifyIntent(message, contextList);
+
+        if (isModifyIntent && contextList != null && !contextList.isEmpty()) {
+            // 执行代码修改流程
+            handleCodeModification(message, contextList);
+        } else {
+            // 执行普通对话流程
+            handleNormalChat(message, contextList);
+        }
+    }
+
+    /**
+     * 检测用户意图是否为修改代码
+     * 
+     * @param message     用户消息
+     * @param contextList 上下文列表
+     * @return true表示用户意图为修改代码
+     */
+    private boolean detectModifyIntent(String message, java.util.List<ContextService.ContextItem> contextList) {
+        // 如果没有代码上下文，不可能是修改代码
+        if (contextList == null || contextList.isEmpty()) {
+            return false;
+        }
+
+        String lowerMessage = message.toLowerCase();
+
+        // 检查是否有明确的命令前缀
+        if (lowerMessage.startsWith("/modify ") || lowerMessage.startsWith("/refactor ")
+                || lowerMessage.startsWith("/optimize ")) {
+            return true;
+        }
+
+        // 关键词列表
+        String[] modifyKeywords = {
+                "修改", "优化", "重构", "添加", "删除", "改进",
+                "修复", "fix", "refactor", "optimize", "add",
+                "remove", "improve", "change", "update", "重写",
+                "改成", "改为", "换成", "替换", "调整"
+        };
+
+        // 检查是否包含修改类关键词
+        for (String keyword : modifyKeywords) {
+            if (lowerMessage.contains(keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 处理代码修改流程
+     * 
+     * @param instruction 修改指令
+     * @param contextList 上下文列表
+     */
+    private void handleCodeModification(String instruction, java.util.List<ContextService.ContextItem> contextList) {
+        // 取第一个上下文作为要修改的代码
+        ContextService.ContextItem codeItem = contextList.get(0);
+
+        // 更新思考提示
+        thinkingManager.updateMessage("AI正在修改代码...");
+
+        // 清除上下文（因为已经使用了）
+        if (contextService != null) {
+            contextService.clearContext();
+            updateContextStatus();
+        }
+
+        // 调用代码修改接口
+        aiClient.modifyCodeWithDiff(
+                codeItem.getContent(),
+                instruction,
+                codeItem.getFileName(),
+                // onSuccess
+                diffResult -> {
+                    thinkingManager.hide();
+
+                    if (diffResult.hasError()) {
+                        responseHandler.addError("代码修改失败: " + diffResult.getError());
+                        inputPanel.setInputEnabled(true);
+                        inputPanel.requestInputFocus();
+                        return;
+                    }
+
+                    if (!diffResult.hasChanges()) {
+                        JPanel noChangePanel = bubbleFactory.createAiMessageBubble(
+                                "**提示**: AI建议的代码与原代码相同，无需修改。");
+                        messagePanel.addMessage(noChangePanel, true);
+                        inputPanel.setInputEnabled(true);
+                        inputPanel.requestInputFocus();
+                        return;
+                    }
+
+                    // 在UI线程中处理
+                    com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(() -> {
+                        try {
+                            // 获取编辑器和偏移量（从聊天框场景）
+                            com.intellij.openapi.editor.Editor editor = openFileAndGetEditor(codeItem);
+
+                            if (editor == null) {
+                                responseHandler.addError("无法打开编辑器，请手动应用修改");
+                                inputPanel.setInputEnabled(true);
+                                inputPanel.requestInputFocus();
+                                return;
+                            }
+
+                            // 计算偏移量
+                            com.intellij.openapi.editor.Document document = editor.getDocument();
+                            int startLine = Math.max(0, codeItem.getStartLine() - 1);
+                            int endLine = Math.max(0, codeItem.getEndLine() - 1);
+                            int startOffset = document.getLineStartOffset(startLine);
+                            int endOffset = document.getLineEndOffset(endLine);
+
+                            // 打开差异查看器并获取虚拟文件
+                            com.intellij.openapi.vfs.VirtualFile diffViewerFile = IntelliJDiffViewer
+                                    .showDiffAndWaitForConfirmation(
+                                            project, diffResult, editor, startOffset, endOffset);
+
+                            if (diffViewerFile != null) {
+                                // 使用PendingModificationManager管理修改
+                                String modificationId = com.javaProgram.services.PendingModificationManager
+                                        .addPendingModification(project, editor, diffResult,
+                                                startOffset, endOffset, diffViewerFile);
+
+                                // 显示统一的确认气泡（ModificationConfirmationPanel），传递文件名
+                                String fileName = diffResult.getFileName() != null ? diffResult.getFileName()
+                                        : codeItem.getFileName();
+                                JPanel confirmationPanel = ModificationConfirmationPanel.create(modificationId,
+                                        fileName);
+                                messagePanel.addMessage(confirmationPanel, true);
+                            }
+
+                        } catch (Exception ex) {
+                            System.err.println("处理代码修改失败: " + ex.getMessage());
+                            ex.printStackTrace();
+                            responseHandler.addError("处理代码修改失败: " + ex.getMessage());
+                        }
+                    });
+
+                    // 重新启用输入
+                    inputPanel.setInputEnabled(true);
+                    inputPanel.requestInputFocus();
+                },
+                // onError
+                error -> {
+                    thinkingManager.hide();
+                    responseHandler.addError("代码修改失败: " + error);
+                    inputPanel.setInputEnabled(true);
+                    inputPanel.requestInputFocus();
+                });
+    }
+
+    /**
+     * 打开文件并获取编辑器
+     * 
+     * @param codeItem 代码上下文项
+     * @return 编辑器实例，失败返回null
+     */
+    private com.intellij.openapi.editor.Editor openFileAndGetEditor(ContextService.ContextItem codeItem) {
+        try {
+            String filePath = codeItem.getFilePath();
+            if (filePath == null || filePath.isEmpty()) {
+                System.err.println("文件路径为空");
+                return null;
+            }
+
+            // 查找虚拟文件
+            com.intellij.openapi.vfs.VirtualFile virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                    .findFileByIoFile(new java.io.File(filePath));
+
+            if (virtualFile == null || !virtualFile.exists()) {
+                System.err.println("找不到文件: " + filePath);
+                return null;
+            }
+
+            // 打开文件并获取编辑器
+            com.intellij.openapi.fileEditor.FileEditorManager editorManager = com.intellij.openapi.fileEditor.FileEditorManager
+                    .getInstance(project);
+
+            return editorManager.openTextEditor(
+                    new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, virtualFile, 0), true);
+
+        } catch (Exception e) {
+            System.err.println("打开文件失败: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * 处理普通对话流程
+     * 
+     * @param message     用户消息
+     * @param contextList 上下文列表
+     */
+    private void handleNormalChat(String message, java.util.List<ContextService.ContextItem> contextList) {
         // 构建完整消息（包含上下文）
         String fullMessage = buildFullMessage(message);
 
@@ -189,7 +387,19 @@ public class ChatToolWindowContent {
      * 添加修改确认消息（公共API）
      */
     public void addModificationConfirmationMessage(String modificationId) {
-        JPanel panel = ModificationConfirmationPanel.create(modificationId);
+        // 从PendingModificationManager获取修改信息，提取文件名
+        com.javaProgram.services.PendingModificationManager.PendingModification modification = com.javaProgram.services.PendingModificationManager
+                .getPendingModification(modificationId);
+
+        String fileName = "未知";
+        if (modification != null && modification.getDiffResult() != null) {
+            fileName = modification.getDiffResult().getFileName();
+            if (fileName == null) {
+                fileName = "未知";
+            }
+        }
+
+        JPanel panel = ModificationConfirmationPanel.create(modificationId, fileName);
         messagePanel.addMessage(panel, true);
     }
 

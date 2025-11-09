@@ -19,6 +19,11 @@ public class AiResponseHandler {
     private JPanel currentAiMessagePanel;
     private StringBuilder accumulatedMarkdown; // 累积的Markdown内容，用于流式更新
 
+    // 更新节流相关
+    private volatile long lastUpdateTime = 0;
+    private static final long UPDATE_INTERVAL_MS = 100; // 每100ms最多更新一次
+    private Timer updateTimer; // 定时器，用于确保最终更新
+
     public AiResponseHandler(MessageBubbleFactory bubbleFactory, ChatMessagePanel messagePanel) {
         this.bubbleFactory = bubbleFactory;
         this.messagePanel = messagePanel;
@@ -36,7 +41,11 @@ public class AiResponseHandler {
      */
     public void startResponse() {
         currentAiMessage = bubbleFactory.createStreamingAiTextArea();
-        currentAiMessage.setSize(new Dimension(Short.MAX_VALUE - 100, 1));
+        // 设置合理的宽度约束，确保文本能够正常换行
+        // 获取聊天面板的宽度作为参考
+        int chatPanelWidth = messagePanel.getScrollPane().getWidth();
+        int maxWidth = chatPanelWidth > 0 ? chatPanelWidth - 100 : 600; // 减去边距
+        currentAiMessage.setSize(new Dimension(maxWidth, 1));
         accumulatedMarkdown = new StringBuilder(); // 初始化累积内容
 
         currentAiMessagePanel = bubbleFactory.createStreamingAiMessagePanel(currentAiMessage);
@@ -49,57 +58,167 @@ public class AiResponseHandler {
      */
     public void appendChunk(String chunk) {
         if (currentAiMessage != null && accumulatedMarkdown != null) {
-            SwingUtilities.invokeLater(() -> {
-                // 累积Markdown内容
-                accumulatedMarkdown.append(chunk);
-                
+            // 累积Markdown内容
+            accumulatedMarkdown.append(chunk);
+
+            // 更新节流：检查是否需要立即更新
+            long currentTime = System.currentTimeMillis();
+            boolean shouldUpdate = (currentTime - lastUpdateTime) >= UPDATE_INTERVAL_MS;
+
+            if (shouldUpdate) {
+                lastUpdateTime = currentTime;
+                updateDisplaySafely();
+            } else {
+                // 如果不需要立即更新，则使用定时器延迟更新（确保最终状态能显示）
+                scheduleDelayedUpdate();
+            }
+        }
+    }
+
+    /**
+     * 安全地更新显示内容（带异常保护）
+     */
+    private void updateDisplaySafely() {
+        // 在外部捕获变量的引用，避免定时器回调时访问到null
+        final JEditorPane messageRef = currentAiMessage;
+        final StringBuilder markdownRef = accumulatedMarkdown;
+
+        if (messageRef == null || markdownRef == null) {
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> {
+            try {
                 // 获取IDE主题的文本颜色
                 Color textColor = JBColor.foreground();
-                
-                // 将累积的Markdown转换为HTML并更新显示
-                String html = MarkdownToHtml.convert(accumulatedMarkdown.toString(), textColor);
-                currentAiMessage.setText(html);
 
-                // 强制文本区域重新计算大小和换行
-                currentAiMessage.revalidate();
-                currentAiMessage.repaint();
+                // 将累积的Markdown转换为HTML
+                String html = MarkdownToHtml.convert(markdownRef.toString(), textColor);
 
-                // 更新面板大小
-                updatePanelSize();
+                // 安全地设置HTML内容
+                if (html != null && !html.isEmpty()) {
+                    messageRef.setText(html);
 
-                // 滚动到底部
-                scrollToBottom();
-            });
+                    // 强制文本区域重新计算大小和换行
+                    messageRef.revalidate();
+                    messageRef.repaint();
+
+                    // 更新面板大小
+                    updatePanelSize();
+
+                    // 滚动到底部
+                    scrollToBottom();
+                }
+            } catch (Exception e) {
+                // 捕获所有异常，避免界面卡死
+                System.err.println("Error updating AI response display: " + e.getMessage());
+                e.printStackTrace();
+
+                // 如果出现异常，尝试使用纯文本显示
+                try {
+                    if (messageRef != null && markdownRef != null) {
+                        messageRef.setContentType("text/plain");
+                        messageRef.setText(markdownRef.toString());
+                    }
+                } catch (Exception fallbackEx) {
+                    System.err.println("Fallback text display also failed: " + fallbackEx.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * 调度延迟更新（用于确保最终状态能显示）
+     */
+    private void scheduleDelayedUpdate() {
+        if (updateTimer != null && updateTimer.isRunning()) {
+            updateTimer.stop();
         }
+
+        updateTimer = new Timer((int) UPDATE_INTERVAL_MS, e -> {
+            updateDisplaySafely();
+            lastUpdateTime = System.currentTimeMillis();
+        });
+        updateTimer.setRepeats(false);
+        updateTimer.start();
     }
 
     /**
      * 完成响应
      */
     public void finishResponse() {
+        // 先停止定时器，避免竞态条件
+        if (updateTimer != null) {
+            if (updateTimer.isRunning()) {
+                updateTimer.stop();
+            }
+            updateTimer = null;
+        }
+
+        // 确保最终状态被显示（在清理资源之前）
+        if (currentAiMessage != null && accumulatedMarkdown != null) {
+            updateDisplaySafely();
+        }
+
+        // 清理资源
         currentAiMessage = null;
         currentAiMessagePanel = null;
         accumulatedMarkdown = null;
+        lastUpdateTime = 0;
     }
 
     /**
      * 添加错误消息
      */
     public void addError(String error) {
+        // 先停止定时器
+        if (updateTimer != null) {
+            if (updateTimer.isRunning()) {
+                updateTimer.stop();
+            }
+            updateTimer = null;
+        }
+
         if (currentAiMessage != null && accumulatedMarkdown != null) {
+            // 添加错误信息到累积内容
+            accumulatedMarkdown.append("\n\n**错误**: ").append(error);
+
+            // 捕获引用，避免竞态条件
+            final JEditorPane messageRef = currentAiMessage;
+            final StringBuilder markdownRef = accumulatedMarkdown;
+
+            // 安全地更新显示
             SwingUtilities.invokeLater(() -> {
-                // 添加错误信息到累积内容
-                accumulatedMarkdown.append("\n\n**错误**: ").append(error);
-                // 获取IDE主题的文本颜色（错误消息使用红色）
-                Color errorColor = new Color(211, 47, 47); // #d32f2f
-                String html = MarkdownToHtml.convert(accumulatedMarkdown.toString(), errorColor);
-                currentAiMessage.setText(html);
+                try {
+                    // 获取IDE主题的文本颜色（错误消息使用红色）
+                    Color errorColor = new Color(211, 47, 47); // #d32f2f
+                    String html = MarkdownToHtml.convert(markdownRef.toString(), errorColor);
+                    if (html != null && !html.isEmpty() && messageRef != null) {
+                        messageRef.setText(html);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error displaying error message: " + e.getMessage());
+                    // 如果HTML显示失败，尝试纯文本
+                    try {
+                        if (messageRef != null && markdownRef != null) {
+                            messageRef.setContentType("text/plain");
+                            messageRef.setText(markdownRef.toString());
+                        }
+                    } catch (Exception fallbackEx) {
+                        System.err.println("Fallback error display also failed: " + fallbackEx.getMessage());
+                    }
+                }
             });
         } else {
             JPanel errorPanel = bubbleFactory.createAiMessageBubble("**错误**: " + error);
             messagePanel.addMessage(errorPanel, true);
         }
-        finishResponse();
+
+        // 清理资源
+        currentAiMessage = null;
+        currentAiMessagePanel = null;
+        accumulatedMarkdown = null;
+        lastUpdateTime = 0;
     }
 
     /**
