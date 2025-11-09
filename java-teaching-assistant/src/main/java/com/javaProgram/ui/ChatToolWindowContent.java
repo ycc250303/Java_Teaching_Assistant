@@ -113,31 +113,55 @@ public class ChatToolWindowContent {
         // 显示思考提示
         thinkingManager.show();
 
-        // 判断用户意图：是否需要修改代码
-        boolean isModifyIntent = detectModifyIntent(message, contextList);
-
-        if (isModifyIntent && contextList != null && !contextList.isEmpty()) {
-            // 执行代码修改流程
-            handleCodeModification(message, contextList);
+        // 如果有代码上下文，使用AI进行意图识别
+        if (contextList != null && !contextList.isEmpty()) {
+            detectModifyIntentWithAI(message, contextList);
         } else {
-            // 执行普通对话流程
+            // 没有代码上下文，直接普通对话
             handleNormalChat(message, contextList);
         }
     }
 
     /**
-     * 检测用户意图是否为修改代码
+     * 使用AI进行意图识别
      * 
      * @param message     用户消息
      * @param contextList 上下文列表
+     */
+    private void detectModifyIntentWithAI(String message, java.util.List<ContextService.ContextItem> contextList) {
+        // 调用AI服务进行意图识别
+        aiClient.detectIntent(
+                message,
+                // onSuccess - AI返回意图
+                intent -> {
+                    System.out.println("AI意图识别结果: " + intent);
+                    if ("modify".equals(intent)) {
+                        // 执行代码修改流程
+                        handleCodeModification(message, contextList);
+                    } else {
+                        // 执行普通对话流程
+                        handleNormalChat(message, contextList);
+                    }
+                },
+                // onError - AI识别失败，使用关键词匹配作为备用方案
+                error -> {
+                    System.err.println("AI意图识别失败，使用关键词匹配备用方案: " + error);
+                    boolean isModifyIntent = detectModifyIntentWithKeywords(message);
+                    if (isModifyIntent) {
+                        handleCodeModification(message, contextList);
+                    } else {
+                        handleNormalChat(message, contextList);
+                    }
+                });
+    }
+
+    /**
+     * 使用关键词检测用户意图（备用方案）
+     * 
+     * @param message 用户消息
      * @return true表示用户意图为修改代码
      */
-    private boolean detectModifyIntent(String message, java.util.List<ContextService.ContextItem> contextList) {
-        // 如果没有代码上下文，不可能是修改代码
-        if (contextList == null || contextList.isEmpty()) {
-            return false;
-        }
-
+    private boolean detectModifyIntentWithKeywords(String message) {
         String lowerMessage = message.toLowerCase();
 
         // 检查是否有明确的命令前缀

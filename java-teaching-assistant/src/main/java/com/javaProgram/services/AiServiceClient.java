@@ -16,6 +16,7 @@ public class AiServiceClient {
     private static final String BASE_URL = "http://localhost:8081/api/ai/chat";
     private static final String MODIFY_CODE_URL = "http://localhost:8081/api/ai/modify-code";
     private static final String MODIFY_CODE_WITH_DIFF_URL = "http://localhost:8081/api/ai/modify-code-with-diff";
+    private static final String DETECT_INTENT_URL = "http://localhost:8081/api/ai/detect-intent";
 
     private int memoryId;
 
@@ -154,6 +155,50 @@ public class AiServiceClient {
                         });
             } catch (Exception e) {
                 runOnUiThread(() -> onError.accept("请求失败: " + e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * AI意图识别
+     * 判断用户消息是修改代码意图还是普通对话意图
+     *
+     * @param message   用户消息
+     * @param onSuccess 成功回调，接收意图类型 "modify" 或 "chat"
+     * @param onError   失败回调，接收错误信息
+     */
+    public void detectIntent(String message, Consumer<String> onSuccess, Consumer<String> onError) {
+        executeInBackground(() -> {
+            try {
+                // 构建请求配置
+                HttpRequestConfig config = new HttpRequestConfig.Builder()
+                        .url(DETECT_INTENT_URL)
+                        .method("POST")
+                        .contentType("application/json; charset=UTF-8")
+                        .requestBody("{\"message\":\"" + JsonUtil.escapeJson(message) + "\"}")
+                        .build();
+
+                // 执行请求
+                HttpUtil.executeRequest(
+                        config,
+                        // onSuccess - 解析响应并在UI线程回调
+                        response -> {
+                            String intent = JsonUtil.extractStringValue(response, "intent");
+                            if (intent != null && (intent.equals("modify") || intent.equals("chat"))) {
+                                runOnUiThread(() -> onSuccess.accept(intent));
+                            } else {
+                                // 如果解析失败，默认为chat
+                                runOnUiThread(() -> onSuccess.accept("chat"));
+                            }
+                        },
+                        // onError - 在UI线程回调，默认为chat
+                        error -> {
+                            System.err.println("意图识别失败，默认为chat: " + error);
+                            runOnUiThread(() -> onSuccess.accept("chat")); // 出错时默认为chat，不影响用户体验
+                        });
+            } catch (Exception e) {
+                System.err.println("意图识别异常，默认为chat: " + e.getMessage());
+                runOnUiThread(() -> onSuccess.accept("chat")); // 异常时默认为chat
             }
         });
     }
