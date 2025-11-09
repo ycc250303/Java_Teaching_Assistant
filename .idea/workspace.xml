@@ -5,13 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7dc1a3d6-5930-4718-86ad-e374229914c6" name="更改" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java-teaching-assistant/.intellijPlatform/localPlatformArtifacts/IU-252.25557.131/localIde-IU-IU-252.25557.131.xml" beforeDir="false" afterPath="$PROJECT_DIR$/java-teaching-assistant/.intellijPlatform/localPlatformArtifacts/IU-252.25557.131/localIde-IU-IU-252.25557.131.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java-teaching-assistant/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/java-teaching-assistant/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java-teaching-assistant/gradle.properties" beforeDir="false" afterPath="$PROJECT_DIR$/java-teaching-assistant/gradle.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java-teaching-assistant/settings.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/java-teaching-assistant/settings.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/ui/ChatToolWindowContent.java" beforeDir="false" afterPath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/ui/ChatToolWindowContent.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/ui/handlers/AiResponseHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/ui/handlers/AiResponseHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/utils/MarkdownToHtml.java" beforeDir="false" afterPath="$PROJECT_DIR$/java-teaching-assistant/src/main/java/com/javaProgram/utils/MarkdownToHtml.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -110,9 +106,9 @@
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;Spring Boot.AiCodeHelperApplication.executor&quot;: &quot;Run&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;F0-Try&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/github_download/Java_Teaching_Assistant&quot;,
+    &quot;last_opened_file_path&quot;: &quot;E:/大三上/Java/项目A：带ai功能的n IntelliJ IDEA插件/Java_Teaching_Assistant&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -150,16 +146,14 @@
       </method>
     </configuration>
     <list>
-      <item itemvalue="Gradle.Run IDE with Plugin" />
       <item itemvalue="Gradle.D:/github_download/Java_Teaching_Assistant/java-teaching-assistant" />
-      <item itemvalue="Spring Boot.AiCodeHelperApplication" />
+      <item itemvalue="Gradle.Run IDE with Plugin" />
     </list>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.25557.131" />
-        <option value="bundled-js-predefined-d6986cc7102b-b598e85cdad2-JavaScript-IU-252.25557.131" />
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.26830.84" />
       </set>
     </attachedChunks>
   </component>

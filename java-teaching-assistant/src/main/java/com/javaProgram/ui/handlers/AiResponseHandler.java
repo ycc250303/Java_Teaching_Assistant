@@ -97,7 +97,14 @@ public class AiResponseHandler {
 
                 // 安全地设置HTML内容
                 if (html != null && !html.isEmpty()) {
-                    messageRef.setText(html);
+                    // 使用 read() 方法替代 setText()，可以更好地处理HTML解析错误
+                    // 先清空内容，避免累积错误
+                    messageRef.setText("");
+                    
+                    // 使用 StringReader 和 read() 方法，这样可以更好地处理解析错误
+                    try (java.io.StringReader reader = new java.io.StringReader(html)) {
+                        messageRef.read(reader, null);
+                    }
 
                     // 强制文本区域重新计算大小和换行
                     messageRef.revalidate();
@@ -194,7 +201,11 @@ public class AiResponseHandler {
                     Color errorColor = new Color(211, 47, 47); // #d32f2f
                     String html = MarkdownToHtml.convert(markdownRef.toString(), errorColor);
                     if (html != null && !html.isEmpty() && messageRef != null) {
-                        messageRef.setText(html);
+                        // 使用 read() 方法替代 setText()
+                        messageRef.setText("");
+                        try (java.io.StringReader reader = new java.io.StringReader(html)) {
+                            messageRef.read(reader, null);
+                        }
                     }
                 } catch (Exception e) {
                     System.err.println("Error displaying error message: " + e.getMessage());
