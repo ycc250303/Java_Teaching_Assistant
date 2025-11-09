@@ -147,7 +147,8 @@ public class RagConfig {
      * 从文件名中提取文件类型描述
      */
     private String getFileTypeFromName(String fileName) {
-        if (fileName == null) return "未知";
+        if (fileName == null)
+            return "未知";
 
         int lastDotIndex = fileName.lastIndexOf('.');
         if (lastDotIndex == -1 || lastDotIndex == fileName.length() - 1) {

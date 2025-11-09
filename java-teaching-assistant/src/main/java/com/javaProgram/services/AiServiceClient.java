@@ -126,16 +126,32 @@ public class AiServiceClient {
                         config,
                         // onSuccess - 解析响应并在UI线程回调
                         response -> {
+                            System.out.println("=== 收到后端响应 ===");
+                            System.out.println("响应长度: " + response.length() + " 字符");
+                            System.out.println("响应前500字符: " + response.substring(0, Math.min(500, response.length())));
+                            System.out.println("==================");
+
                             CodeDiffResult result = parseDiffResponse(response);
                             if (result != null && result.getError() == null) {
+                                System.out.println("✓ 解析成功！");
+                                System.out.println("  原始代码长度: "
+                                        + (result.getOriginalCode() != null ? result.getOriginalCode().length() : 0));
+                                System.out.println("  修改代码长度: "
+                                        + (result.getModifiedCode() != null ? result.getModifiedCode().length() : 0));
                                 runOnUiThread(() -> onSuccess.accept(result));
                             } else {
                                 String error = result != null ? result.getError() : "解析响应失败";
+                                System.err.println("✗ 解析失败！错误: " + error);
                                 runOnUiThread(() -> onError.accept(error));
                             }
                         },
                         // onError - 在UI线程回调
-                        error -> runOnUiThread(() -> onError.accept(error)));
+                        error -> {
+                            System.err.println("=== HTTP请求失败 ===");
+                            System.err.println("错误: " + error);
+                            System.err.println("==================");
+                            runOnUiThread(() -> onError.accept(error));
+                        });
             } catch (Exception e) {
                 runOnUiThread(() -> onError.accept("请求失败: " + e.getMessage()));
             }
@@ -222,10 +238,23 @@ public class AiServiceClient {
             result.setInstruction(JsonUtil.extractStringValue(jsonResponse, "instruction"));
             result.setFileName(JsonUtil.extractStringValue(jsonResponse, "fileName"));
 
+            // 验证必要字段
+            if ((result.getOriginalCode() == null || result.getOriginalCode().isEmpty()) &&
+                    (result.getModifiedCode() == null || result.getModifiedCode().isEmpty())) {
+                result.setError("后端返回的代码为空。原始响应长度: " + jsonResponse.length() + "字符");
+                System.err.println("=== 解析失败的JSON响应 ===");
+                System.err.println(jsonResponse.substring(0, Math.min(500, jsonResponse.length())));
+                System.err.println("======================");
+            }
+
             return result;
         } catch (Exception e) {
             CodeDiffResult result = new CodeDiffResult();
-            result.setError("解析响应失败: " + e.getMessage());
+            result.setError("解析响应失败: " + e.getMessage() + "\n响应长度: " + jsonResponse.length() + "字符");
+            System.err.println("=== JSON解析异常 ===");
+            e.printStackTrace();
+            System.err.println("响应前500字符: " + jsonResponse.substring(0, Math.min(500, jsonResponse.length())));
+            System.err.println("===================");
             return result;
         }
     }
