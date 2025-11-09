@@ -22,12 +22,14 @@ public class ChatToolWindowContent {
     // 服务层
     private final AiServiceClient aiClient;
     private final ContextService contextService;
+    private final com.javaProgram.services.RequestQueueManager queueManager;
 
     // UI组件
     private final MessageBubbleFactory bubbleFactory;
     private final ChatMessagePanel messagePanel;
     private final ChatInputPanel inputPanel;
     private final ContextDisplayPanel contextDisplayPanel;
+    private final QueueDisplayPanel queueDisplayPanel;
     private final ThinkingIndicatorManager thinkingManager;
 
     // 处理器
@@ -44,6 +46,10 @@ public class ChatToolWindowContent {
         this.aiClient = new AiServiceClient(project.hashCode());
         this.contextService = ServiceManager.getService(project, ContextService.class);
 
+        // 初始化请求队列管理器
+        this.queueManager = new com.javaProgram.services.RequestQueueManager();
+        queueManager.setOnProcessRequest(this::executeRequest);
+
         // 计算背景颜色
         Color backgroundColor = lightenColor(JBColor.PanelBackground, 0.05f);
 
@@ -52,6 +58,7 @@ public class ChatToolWindowContent {
         this.bubbleFactory = new MessageBubbleFactory(messagePanel.getScrollPane(), project);
         this.inputPanel = new ChatInputPanel(backgroundColor, project, contextService);
         this.contextDisplayPanel = new ContextDisplayPanel(contextService, project);
+        this.queueDisplayPanel = new QueueDisplayPanel(queueManager);
         this.thinkingManager = new ThinkingIndicatorManager(bubbleFactory, messagePanel);
         this.responseHandler = new AiResponseHandler(bubbleFactory, messagePanel);
 
@@ -85,7 +92,14 @@ public class ChatToolWindowContent {
         // 输入区域容器
         JPanel inputAreaContainer = new JPanel(new BorderLayout());
         inputAreaContainer.setBackground(backgroundColor);
-        inputAreaContainer.add(contextDisplayPanel, BorderLayout.NORTH);
+
+        // 创建上下文和队列的容器
+        JPanel topContainer = new JPanel(new BorderLayout());
+        topContainer.setBackground(backgroundColor);
+        topContainer.add(queueDisplayPanel, BorderLayout.NORTH);
+        topContainer.add(contextDisplayPanel, BorderLayout.CENTER);
+
+        inputAreaContainer.add(topContainer, BorderLayout.NORTH);
         inputAreaContainer.add(inputPanel, BorderLayout.CENTER);
 
         // 组装主面板
@@ -97,29 +111,65 @@ public class ChatToolWindowContent {
     }
 
     /**
-     * 处理发送消息
+     * 处理发送消息（队列模式）
      */
     private void handleSendMessage(String message) {
-        // 📌 在添加用户消息前，先获取当前上下文列表（因为后面会清除）
+        // 获取当前上下文列表（会创建副本保存到队列中）
         var contextList = contextService != null ? contextService.getContextList() : null;
 
-        // 添加用户消息（带上下文信息）
-        JPanel userBubble = bubbleFactory.createUserMessageBubble(message, contextList);
-        messagePanel.addMessage(userBubble, true);
+        // 尝试加入队列
+        boolean added = queueManager.addRequest(message, contextList);
 
-        // 禁用输入
-        inputPanel.setInputEnabled(false);
-
-        // 显示思考提示
-        thinkingManager.show();
-
-        // 如果有代码上下文，使用AI进行意图识别
-        if (contextList != null && !contextList.isEmpty()) {
-            detectModifyIntentWithAI(message, contextList);
-        } else {
-            // 没有代码上下文，直接普通对话
-            handleNormalChat(message, contextList);
+        if (!added) {
+            // 队列已满，提示用户
+            JOptionPane.showMessageDialog(
+                    mainPanel,
+                    "请求队列已满（最多3个），请稍后再试",
+                    "队列已满",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
         }
+
+        // 清空输入框但不禁用
+        inputPanel.clearInput();
+
+        // 如果没有正在处理的请求，立即开始处理
+        if (!queueManager.isProcessing()) {
+            queueManager.startProcessing();
+        }
+    }
+
+    /**
+     * 实际执行请求（由队列管理器回调）
+     * 
+     * @param request 待处理的请求
+     */
+    private void executeRequest(com.javaProgram.services.RequestQueueManager.QueuedRequest request) {
+        String message = request.getMessage();
+        var contextList = request.getContextList();
+
+        // 在UI线程中执行
+        SwingUtilities.invokeLater(() -> {
+            // 在实际开始处理时才显示用户消息气泡
+            JPanel userBubble = bubbleFactory.createUserMessageBubble(message, contextList);
+            messagePanel.addMessage(userBubble, true);
+
+            // 显示思考提示
+            thinkingManager.show();
+
+            // 清除上下文服务（因为请求已经保存了上下文副本）
+            if (contextService != null) {
+                contextService.clearContext();
+                updateContextStatus();
+            }
+
+            // 根据上下文判断意图
+            if (contextList != null && !contextList.isEmpty()) {
+                detectModifyIntentWithAI(message, contextList);
+            } else {
+                handleNormalChat(message, contextList);
+            }
+        });
     }
 
     /**
@@ -189,105 +239,143 @@ public class ChatToolWindowContent {
     }
 
     /**
-     * 处理代码修改流程
+     * 处理代码修改流程（支持多文件，串行处理保证顺序）
      * 
      * @param instruction 修改指令
      * @param contextList 上下文列表
      */
     private void handleCodeModification(String instruction, java.util.List<ContextService.ContextItem> contextList) {
-        // 取第一个上下文作为要修改的代码
-        ContextService.ContextItem codeItem = contextList.get(0);
+        // 获取要修改的文件数量
+        int totalFiles = contextList.size();
 
         // 更新思考提示
-        thinkingManager.updateMessage("AI正在修改代码...");
+        thinkingManager.updateMessage("AI正在修改 " + totalFiles + " 个文件...");
 
-        // 清除上下文（因为已经使用了）
-        if (contextService != null) {
-            contextService.clearContext();
-            updateContextStatus();
+        // 使用原子计数器追踪成功数量
+        final java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        // 从第一个文件开始串行处理
+        processFileModification(instruction, contextList, 0, totalFiles, successCount);
+    }
+
+    /**
+     * 递归处理单个文件的修改（串行保证顺序）
+     * 
+     * @param instruction  修改指令
+     * @param contextList  上下文列表
+     * @param currentIndex 当前处理的文件索引
+     * @param totalFiles   总文件数
+     * @param successCount 成功修改的文件计数器
+     */
+    private void processFileModification(String instruction,
+            java.util.List<ContextService.ContextItem> contextList,
+            int currentIndex,
+            int totalFiles,
+            java.util.concurrent.atomic.AtomicInteger successCount) {
+
+        // 如果所有文件都处理完了
+        if (currentIndex >= totalFiles) {
+            thinkingManager.hide();
+
+            // 显示完成摘要
+            if (successCount.get() > 0) {
+                JPanel summaryPanel = bubbleFactory.createAiMessageBubble(
+                        "✅ **代码修改完成**: 成功修改 " + successCount.get() + "/" + totalFiles + " 个文件");
+                messagePanel.addMessage(summaryPanel, true);
+            }
+
+            // 通知队列管理器完成
+            queueManager.completeCurrentRequest();
+            inputPanel.requestInputFocus();
+            return;
         }
 
-        // 调用代码修改接口
+        final ContextService.ContextItem codeItem = contextList.get(currentIndex);
+        final int fileIndex = currentIndex + 1;
+
+        // 处理当前文件
         aiClient.modifyCodeWithDiff(
                 codeItem.getContent(),
                 instruction,
                 codeItem.getFileName(),
                 // onSuccess
                 diffResult -> {
-                    thinkingManager.hide();
-
                     if (diffResult.hasError()) {
-                        responseHandler.addError("代码修改失败: " + diffResult.getError());
-                        inputPanel.setInputEnabled(true);
-                        inputPanel.requestInputFocus();
-                        return;
-                    }
-
-                    if (!diffResult.hasChanges()) {
+                        responseHandler.addError("文件 [" + codeItem.getFileName() + "] 修改失败: " + diffResult.getError());
+                        // 继续处理下一个文件
+                        processFileModification(instruction, contextList, currentIndex + 1, totalFiles, successCount);
+                    } else if (!diffResult.hasChanges()) {
                         JPanel noChangePanel = bubbleFactory.createAiMessageBubble(
-                                "**提示**: AI建议的代码与原代码相同，无需修改。");
+                                "**文件 " + fileIndex + "/" + totalFiles + "**: `" + codeItem.getFileName() +
+                                        "` - AI建议的代码与原代码相同，无需修改。");
                         messagePanel.addMessage(noChangePanel, true);
-                        inputPanel.setInputEnabled(true);
-                        inputPanel.requestInputFocus();
-                        return;
+                        // 继续处理下一个文件
+                        processFileModification(instruction, contextList, currentIndex + 1, totalFiles, successCount);
+                    } else {
+                        // 有修改内容，处理diff
+                        successCount.incrementAndGet();
+
+                        // 在UI线程中处理
+                        com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(() -> {
+                            try {
+                                // 获取编辑器和偏移量
+                                com.intellij.openapi.editor.Editor editor = openFileAndGetEditor(codeItem);
+
+                                if (editor == null) {
+                                    responseHandler.addError("文件 [" + codeItem.getFileName() + "] 无法打开编辑器");
+                                    // 继续处理下一个文件
+                                    processFileModification(instruction, contextList, currentIndex + 1, totalFiles,
+                                            successCount);
+                                    return;
+                                }
+
+                                // 计算偏移量
+                                com.intellij.openapi.editor.Document document = editor.getDocument();
+                                int startLine = Math.max(0, codeItem.getStartLine() - 1);
+                                int endLine = Math.max(0, codeItem.getEndLine() - 1);
+                                int startOffset = document.getLineStartOffset(startLine);
+                                int endOffset = document.getLineEndOffset(endLine);
+
+                                // 打开差异查看器并获取虚拟文件
+                                com.intellij.openapi.vfs.VirtualFile diffViewerFile = IntelliJDiffViewer
+                                        .showDiffAndWaitForConfirmation(
+                                                project, diffResult, editor, startOffset, endOffset);
+
+                                if (diffViewerFile != null) {
+                                    // 使用PendingModificationManager管理修改
+                                    String modificationId = com.javaProgram.services.PendingModificationManager
+                                            .addPendingModification(project, editor, diffResult,
+                                                    startOffset, endOffset, diffViewerFile);
+
+                                    // 显示统一的确认气泡（ModificationConfirmationPanel），传递文件名
+                                    String fileName = diffResult.getFileName() != null ? diffResult.getFileName()
+                                            : codeItem.getFileName();
+                                    JPanel confirmationPanel = ModificationConfirmationPanel.create(modificationId,
+                                            fileName);
+                                    messagePanel.addMessage(confirmationPanel, true);
+                                }
+
+                                // 处理完当前文件后，继续下一个
+                                processFileModification(instruction, contextList, currentIndex + 1, totalFiles,
+                                        successCount);
+
+                            } catch (Exception ex) {
+                                System.err.println("处理文件 [" + codeItem.getFileName() + "] 修改失败: " + ex.getMessage());
+                                ex.printStackTrace();
+                                responseHandler
+                                        .addError("处理文件 [" + codeItem.getFileName() + "] 修改失败: " + ex.getMessage());
+                                // 继续处理下一个文件
+                                processFileModification(instruction, contextList, currentIndex + 1, totalFiles,
+                                        successCount);
+                            }
+                        });
                     }
-
-                    // 在UI线程中处理
-                    com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(() -> {
-                        try {
-                            // 获取编辑器和偏移量（从聊天框场景）
-                            com.intellij.openapi.editor.Editor editor = openFileAndGetEditor(codeItem);
-
-                            if (editor == null) {
-                                responseHandler.addError("无法打开编辑器，请手动应用修改");
-                                inputPanel.setInputEnabled(true);
-                                inputPanel.requestInputFocus();
-                                return;
-                            }
-
-                            // 计算偏移量
-                            com.intellij.openapi.editor.Document document = editor.getDocument();
-                            int startLine = Math.max(0, codeItem.getStartLine() - 1);
-                            int endLine = Math.max(0, codeItem.getEndLine() - 1);
-                            int startOffset = document.getLineStartOffset(startLine);
-                            int endOffset = document.getLineEndOffset(endLine);
-
-                            // 打开差异查看器并获取虚拟文件
-                            com.intellij.openapi.vfs.VirtualFile diffViewerFile = IntelliJDiffViewer
-                                    .showDiffAndWaitForConfirmation(
-                                            project, diffResult, editor, startOffset, endOffset);
-
-                            if (diffViewerFile != null) {
-                                // 使用PendingModificationManager管理修改
-                                String modificationId = com.javaProgram.services.PendingModificationManager
-                                        .addPendingModification(project, editor, diffResult,
-                                                startOffset, endOffset, diffViewerFile);
-
-                                // 显示统一的确认气泡（ModificationConfirmationPanel），传递文件名
-                                String fileName = diffResult.getFileName() != null ? diffResult.getFileName()
-                                        : codeItem.getFileName();
-                                JPanel confirmationPanel = ModificationConfirmationPanel.create(modificationId,
-                                        fileName);
-                                messagePanel.addMessage(confirmationPanel, true);
-                            }
-
-                        } catch (Exception ex) {
-                            System.err.println("处理代码修改失败: " + ex.getMessage());
-                            ex.printStackTrace();
-                            responseHandler.addError("处理代码修改失败: " + ex.getMessage());
-                        }
-                    });
-
-                    // 重新启用输入
-                    inputPanel.setInputEnabled(true);
-                    inputPanel.requestInputFocus();
                 },
                 // onError
                 error -> {
-                    thinkingManager.hide();
-                    responseHandler.addError("代码修改失败: " + error);
-                    inputPanel.setInputEnabled(true);
-                    inputPanel.requestInputFocus();
+                    responseHandler.addError("文件 [" + codeItem.getFileName() + "] 修改失败: " + error);
+                    // 继续处理下一个文件
+                    processFileModification(instruction, contextList, currentIndex + 1, totalFiles, successCount);
                 });
     }
 
@@ -336,19 +424,13 @@ public class ChatToolWindowContent {
      */
     private void handleNormalChat(String message, java.util.List<ContextService.ContextItem> contextList) {
         // 构建完整消息（包含上下文）
-        String fullMessage = buildFullMessage(message);
-
-        // 📌 发送后清除上下文（因为已经包含在消息中了）
-        if (contextService != null) {
-            contextService.clearContext();
-            updateContextStatus();
-        }
+        String fullMessage = buildFullMessage(message, contextList);
 
         // 调用AI服务（传递项目路径，让AI能自主读取代码）
-        String projectPath = project.getBasePath(); // 获取项目根目录
+        String projectPath = project.getBasePath();
         aiClient.sendMessage(
                 fullMessage,
-                projectPath, // 传递项目路径给后端
+                projectPath,
                 // onChunk
                 chunk -> {
                     if (responseHandler.isIdle()) {
@@ -360,14 +442,14 @@ public class ChatToolWindowContent {
                 // onComplete
                 () -> {
                     responseHandler.finishResponse();
-                    inputPanel.setInputEnabled(true);
+                    queueManager.completeCurrentRequest();
                     inputPanel.requestInputFocus();
                 },
                 // onError
                 error -> {
                     thinkingManager.hide();
                     responseHandler.addError(error);
-                    inputPanel.setInputEnabled(true);
+                    queueManager.failCurrentRequest();
                     inputPanel.requestInputFocus();
                 });
     }
@@ -375,12 +457,15 @@ public class ChatToolWindowContent {
     /**
      * 构建包含上下文的完整消息
      */
-    private String buildFullMessage(String userMessage) {
-        if (contextService != null) {
-            String context = contextService.getCurrentContext();
-            if (!context.trim().isEmpty()) {
-                return context + "\n\n用户问题:\n" + userMessage;
+    private String buildFullMessage(String userMessage, java.util.List<ContextService.ContextItem> contextList) {
+        if (contextList != null && !contextList.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (ContextService.ContextItem item : contextList) {
+                sb.append("文件: ").append(item.getFileName()).append("\n");
+                sb.append("代码:\n").append(item.getContent()).append("\n\n");
             }
+            sb.append("用户问题:\n").append(userMessage);
+            return sb.toString();
         }
         return userMessage;
     }
