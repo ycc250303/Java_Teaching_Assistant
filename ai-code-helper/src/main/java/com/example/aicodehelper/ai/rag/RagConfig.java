@@ -115,19 +115,28 @@ public class RagConfig {
 
         // 向量化处理文档
         if (!documents.isEmpty()) {
-            ingestor.ingest(documents);
-            log.info("文档向量化处理完成");
+            try {
+                ingestor.ingest(documents);
+                log.info("文档向量化处理完成");
 
-            // 验证metadata保存情况
-            log.debug("样本metadata验证：检查前5个文档的metadata信息");
-            int sampleCount = Math.min(5, documents.size());
-            for (int i = 0; i < sampleCount; i++) {
-                Document doc = documents.get(i);
-                Metadata metadata = doc.metadata();
-                log.debug("文档 {} metadata: file_name={}, page_number={}",
-                        i + 1,
-                        metadata.getString("file_name"),
-                        metadata.getString("page_number"));
+                // 验证metadata保存情况
+                log.debug("样本metadata验证：检查前5个文档的metadata信息");
+                int sampleCount = Math.min(5, documents.size());
+                for (int i = 0; i < sampleCount; i++) {
+                    Document doc = documents.get(i);
+                    Metadata metadata = doc.metadata();
+                    log.debug("文档 {} metadata: file_name={}, page_number={}",
+                            i + 1,
+                            metadata.getString("file_name"),
+                            metadata.getString("page_number"));
+                }
+            } catch (Exception e) {
+                log.error("文档向量化处理失败，RAG功能将不可用。错误信息: {}", e.getMessage(), e);
+                log.warn("请检查以下事项：");
+                log.warn("1. 阿里云 DashScope API 密钥是否正确");
+                log.warn("2. 账户是否欠费或状态异常");
+                log.warn("3. API 服务是否可用");
+                log.warn("应用将继续启动，但 RAG 功能将不可用");
             }
         }
 

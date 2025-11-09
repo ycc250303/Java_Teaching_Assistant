@@ -6,6 +6,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 import com.javaProgram.services.ContextService;
 import com.javaProgram.utils.CodeNavigationUtil;
+import com.javaProgram.utils.MarkdownToHtml;
 
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
@@ -232,29 +233,31 @@ public class MessageBubbleFactory {
 
     /**
      * 创建AI消息的文本区域（内部方法，可复用）
+     * 使用 JEditorPane 支持 HTML 渲染
      * 
-     * @return 配置好样式的 JTextArea
+     * @return 配置好样式的 JEditorPane
      */
-    private JTextArea createAiTextArea() {
-        JTextArea messageText = new JTextArea();
+    private JEditorPane createAiTextArea() {
+        JEditorPane messageText = new JEditorPane();
+        messageText.setContentType("text/html");
         messageText.setEditable(false);
-        messageText.setLineWrap(true);
-        messageText.setWrapStyleWord(true);
         messageText.setOpaque(false);
-        messageText.setForeground(JBUI.CurrentTheme.Label.foreground());
-        messageText.setFont(JBUI.Fonts.smallFont().deriveFont(Font.PLAIN, SMALL_FONT_SIZE));
         messageText.setBorder(JBUI.Borders.empty(0, 8, 2, 8));
         messageText.setFocusable(true);
+        
+        // 设置背景透明，使用主题颜色
+        messageText.setBackground(new Color(0, 0, 0, 0));
+        
         return messageText;
     }
 
     /**
      * 创建AI消息面板（内部方法，可复用）
      * 
-     * @param messageText AI消息的文本区域
+     * @param messageText AI消息的文本区域（JEditorPane）
      * @return 包装好的消息面板
      */
-    private JPanel createAiMessagePanel(JTextArea messageText) {
+    private JPanel createAiMessagePanel(JEditorPane messageText) {
         JPanel messagePanel = new JPanel(new BorderLayout());
         messagePanel.setOpaque(false);
         messagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -268,12 +271,18 @@ public class MessageBubbleFactory {
     /**
      * 创建AI消息气泡（用于显示完整的AI消息）
      * 
-     * @param message AI回复的完整消息内容
+     * @param message AI回复的完整消息内容（Markdown格式）
      * @return 包含消息的面板
      */
     public JPanel createAiMessageBubble(String message) {
-        JTextArea messageText = createAiTextArea();
-        messageText.setText(message);
+        JEditorPane messageText = createAiTextArea();
+        
+        // 获取IDE主题的文本颜色
+        Color textColor = JBColor.foreground();
+        
+        // 将Markdown转换为HTML，使用主题颜色
+        String html = MarkdownToHtml.convert(message, textColor);
+        messageText.setText(html);
 
         // 根据滚动面板宽度设置文本区域大小
         int viewportWidth = chatScrollPane != null ? chatScrollPane.getViewport().getWidth() : 400;
@@ -286,19 +295,19 @@ public class MessageBubbleFactory {
     /**
      * 创建流式AI消息的文本区域（用于逐步接收AI回复）
      * 
-     * @return 空的、配置好样式的 JTextArea，可用于逐步追加内容
+     * @return 空的、配置好样式的 JEditorPane，可用于逐步追加内容
      */
-    public JTextArea createStreamingAiTextArea() {
+    public JEditorPane createStreamingAiTextArea() {
         return createAiTextArea();
     }
 
     /**
      * 创建流式AI消息面板（用于包装流式接收的AI消息）
      * 
-     * @param messageText 已创建的文本区域
+     * @param messageText 已创建的文本区域（JEditorPane）
      * @return 配置好的消息面板，支持动态调整大小
      */
-    public JPanel createStreamingAiMessagePanel(JTextArea messageText) {
+    public JPanel createStreamingAiMessagePanel(JEditorPane messageText) {
         JPanel messagePanel = createAiMessagePanel(messageText);
 
         // 流式消息需要支持动态调整大小
