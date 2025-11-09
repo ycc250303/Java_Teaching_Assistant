@@ -416,6 +416,13 @@ public class ChatInputPanel extends JPanel {
     }
 
     /**
+     * 清空输入框内容
+     */
+    public void clearInput() {
+        inputField.setText("");
+    }
+
+    /**
      * 使颜色变浅
      */
     private Color lightenColor(Color color, float factor) {
