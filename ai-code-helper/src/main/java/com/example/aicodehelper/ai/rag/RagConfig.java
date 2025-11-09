@@ -116,8 +116,28 @@ public class RagConfig {
         // 向量化处理文档
         if (!documents.isEmpty()) {
             try {
-                ingestor.ingest(documents);
-                log.info("文档向量化处理完成");
+                // 检查缓存文件是否存在，来判断是否需要向量化
+                java.io.File cacheFile = new java.io.File("embedding-store.json");
+                boolean needsVectorization = !cacheFile.exists();
+
+                if (needsVectorization) {
+                    log.info("开始向量化处理（会消耗API额度）...");
+                    ingestor.ingest(documents);
+                    log.info("✓ 文档向量化处理完成");
+
+                    // 保存向量数据到文件
+                    if (embeddingStore instanceof dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore) {
+                        try {
+                            dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore<TextSegment> inMemoryStore = (dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore<TextSegment>) embeddingStore;
+                            inMemoryStore.serializeToFile("embedding-store.json");
+                            log.info("✓ 向量数据已保存到缓存文件，下次启动将直接加载");
+                        } catch (Exception saveEx) {
+                            log.warn("保存向量数据失败（不影响功能）: {}", saveEx.getMessage());
+                        }
+                    }
+                } else {
+                    log.info("✓ 检测到向量数据缓存，跳过向量化处理");
+                }
 
                 // 验证metadata保存情况
                 log.debug("样本metadata验证：检查前5个文档的metadata信息");
