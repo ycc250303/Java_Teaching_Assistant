@@ -160,6 +160,46 @@ public class AiController {
     }
 
     /**
+     * 意图识别接口
+     * 使用AI判断用户消息是修改代码意图还是普通对话意图
+     *
+     * @param request 包含用户消息的请求体
+     * @return 意图类型: "modify" 或 "chat"
+     */
+    @PostMapping("/detect-intent")
+    public Map<String, String> detectIntent(@RequestBody Map<String, String> request) {
+        try {
+            String message = request.get("message");
+
+            if (message == null || message.trim().isEmpty()) {
+                return Map.of(
+                        "intent", "chat",
+                        "confidence", "low");
+            }
+
+            // 调用AI服务进行意图识别
+            String intent = aiCodeHelperService.detectIntent(message);
+
+            // 清理返回结果，确保只有 "modify" 或 "chat"
+            String cleanedIntent = intent.trim().toLowerCase();
+            if (!cleanedIntent.equals("modify") && !cleanedIntent.equals("chat")) {
+                // 如果AI返回了其他内容，默认为chat
+                cleanedIntent = "chat";
+            }
+
+            return Map.of(
+                    "intent", cleanedIntent,
+                    "confidence", "high");
+        } catch (Exception e) {
+            // 如果出错，默认为普通对话
+            return Map.of(
+                    "intent", "chat",
+                    "confidence", "low",
+                    "error", e.getMessage());
+        }
+    }
+
+    /**
      * 构建代码修改提示词
      */
     private String buildModificationPrompt(String originalCode, String instruction, String fileName) {

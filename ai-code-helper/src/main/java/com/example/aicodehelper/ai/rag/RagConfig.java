@@ -116,12 +116,19 @@ public class RagConfig {
         // 向量化处理文档
         if (!documents.isEmpty()) {
             try {
-                // 检查缓存文件是否存在，来判断是否需要向量化
-                java.io.File cacheFile = new java.io.File("embedding-store.json");
-                boolean needsVectorization = !cacheFile.exists();
+                // 检查是否需要重新向量化
+                boolean needsVectorization = checkIfVectorizationNeeded(documents);
 
                 if (needsVectorization) {
-                    log.info("开始向量化处理（会消耗API额度）...");
+                    log.info("检测到文档变化，开始重新向量化处理（会消耗API额度）...");
+
+                    // 清空现有的向量数据，避免旧数据残留
+                    if (embeddingStore instanceof dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore) {
+                        dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore<TextSegment> inMemoryStore = (dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore<TextSegment>) embeddingStore;
+                        inMemoryStore.removeAll();
+                        log.info("✓ 已清空旧的向量数据");
+                    }
+
                     ingestor.ingest(documents);
                     log.info("✓ 文档向量化处理完成");
 
@@ -130,13 +137,16 @@ public class RagConfig {
                         try {
                             dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore<TextSegment> inMemoryStore = (dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore<TextSegment>) embeddingStore;
                             inMemoryStore.serializeToFile("embedding-store.json");
-                            log.info("✓ 向量数据已保存到缓存文件，下次启动将直接加载");
+                            log.info("✓ 向量数据已保存到缓存文件");
+
+                            // 保存文档指纹用于下次对比
+                            saveDocumentFingerprint(documents);
                         } catch (Exception saveEx) {
                             log.warn("保存向量数据失败（不影响功能）: {}", saveEx.getMessage());
                         }
                     }
                 } else {
-                    log.info("✓ 检测到向量数据缓存，跳过向量化处理");
+                    log.info("✓ 文档未变化，使用缓存的向量数据");
                 }
 
                 // 验证metadata保存情况
@@ -170,6 +180,79 @@ public class RagConfig {
 
         log.info("RAG系统初始化完成，支持页码引用");
         return contentRetriever;
+    }
+
+    /**
+     * 检查是否需要重新向量化
+     * 通过对比文档指纹（文件名、大小、修改时间）来判断
+     */
+    private boolean checkIfVectorizationNeeded(List<Document> documents) {
+        java.io.File cacheFile = new java.io.File("embedding-store.json");
+        java.io.File fingerprintFile = new java.io.File("document-fingerprint.json");
+
+        // 如果向量缓存不存在，需要向量化
+        if (!cacheFile.exists()) {
+            log.info("未找到向量缓存文件，需要重新向量化");
+            return true;
+        }
+
+        // 如果指纹文件不存在，需要向量化
+        if (!fingerprintFile.exists()) {
+            log.info("未找到文档指纹文件，需要重新向量化");
+            return true;
+        }
+
+        try {
+            // 读取保存的指纹
+            String savedFingerprint = new String(java.nio.file.Files.readAllBytes(fingerprintFile.toPath()));
+
+            // 计算当前文档的指纹
+            String currentFingerprint = calculateDocumentFingerprint(documents);
+
+            // 对比指纹
+            if (!savedFingerprint.equals(currentFingerprint)) {
+                log.info("文档已变化，需要重新向量化");
+                log.debug("旧指纹: {}", savedFingerprint.substring(0, Math.min(100, savedFingerprint.length())));
+                log.debug("新指纹: {}", currentFingerprint.substring(0, Math.min(100, currentFingerprint.length())));
+                return true;
+            }
+
+            return false;
+        } catch (Exception e) {
+            log.warn("读取指纹文件失败，将重新向量化: {}", e.getMessage());
+            return true;
+        }
+    }
+
+    /**
+     * 计算文档指纹
+     * 基于文件名和文档长度生成唯一标识
+     */
+    private String calculateDocumentFingerprint(List<Document> documents) {
+        StringBuilder fingerprint = new StringBuilder();
+        for (Document doc : documents) {
+            String fileName = doc.metadata().getString("file_name");
+            if (fileName != null) {
+                fingerprint.append(fileName).append(":");
+            }
+            fingerprint.append(doc.text().length()).append(";");
+        }
+        return fingerprint.toString();
+    }
+
+    /**
+     * 保存文档指纹到文件
+     */
+    private void saveDocumentFingerprint(List<Document> documents) {
+        try {
+            String fingerprint = calculateDocumentFingerprint(documents);
+            java.nio.file.Files.write(
+                    java.nio.file.Paths.get("document-fingerprint.json"),
+                    fingerprint.getBytes());
+            log.info("✓ 文档指纹已保存");
+        } catch (Exception e) {
+            log.warn("保存文档指纹失败（不影响功能）: {}", e.getMessage());
+        }
     }
 
     /**
