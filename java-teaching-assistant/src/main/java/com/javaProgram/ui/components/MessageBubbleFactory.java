@@ -4,7 +4,9 @@ import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
+import com.javaProgram.services.CodeDiffResult;
 import com.javaProgram.services.ContextService;
+import com.javaProgram.ui.IntelliJDiffViewer;
 import com.javaProgram.utils.CodeNavigationUtil;
 import com.javaProgram.utils.MarkdownToHtml;
 
@@ -244,10 +246,20 @@ public class MessageBubbleFactory {
         messageText.setOpaque(false);
         messageText.setBorder(JBUI.Borders.empty(0, 8, 2, 8));
         messageText.setFocusable(true);
-        
+
         // 设置背景透明，使用主题颜色
         messageText.setBackground(new Color(0, 0, 0, 0));
-        
+
+        // 获取滚动面板宽度作为最大宽度约束
+        if (chatScrollPane != null) {
+            int scrollPaneWidth = chatScrollPane.getWidth();
+            if (scrollPaneWidth > 0) {
+                // 设置最大宽度，确保文本能够换行
+                int maxWidth = scrollPaneWidth - 150; // 减去边距和滚动条宽度
+                messageText.setMaximumSize(new Dimension(maxWidth, Integer.MAX_VALUE));
+            }
+        }
+
         return messageText;
     }
 
@@ -276,10 +288,10 @@ public class MessageBubbleFactory {
      */
     public JPanel createAiMessageBubble(String message) {
         JEditorPane messageText = createAiTextArea();
-        
+
         // 获取IDE主题的文本颜色
         Color textColor = JBColor.foreground();
-        
+
         // 将Markdown转换为HTML，使用主题颜色
         String html = MarkdownToHtml.convert(message, textColor);
         messageText.setText(html);
@@ -400,6 +412,141 @@ public class MessageBubbleFactory {
         textArea.setMaximumSize(new Dimension(preferredWidth, preferredHeight));
 
         return textArea;
+    }
+
+    /**
+     * 创建代码修改差异摘要气泡
+     * 显示代码修改的摘要信息，并提供查看差异和应用修改的按钮
+     * 
+     * @param diffResult 代码差异结果
+     * @return 包含摘要和操作按钮的面板
+     */
+    public JPanel createDiffSummaryBubble(CodeDiffResult diffResult) {
+        JPanel outerPanel = new JPanel(new BorderLayout());
+        outerPanel.setOpaque(false);
+        outerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        outerPanel.setBorder(JBUI.Borders.empty(2, 8, 2, 8));
+
+        // 创建主内容面板
+        JPanel mainPanel = new JPanel(new BorderLayout(JBUI.scale(10), JBUI.scale(10)));
+        mainPanel.setOpaque(true);
+        mainPanel.setBackground(lightenColor(JBColor.PanelBackground, 0.08f));
+        mainPanel.setBorder(new RoundedBorder(
+                new JBColor(new Color(100, 149, 237), new Color(100, 149, 237)),
+                2,
+                JBUI.scale(10),
+                JBUI.scale(12)));
+
+        // 创建摘要信息面板
+        JPanel summaryPanel = new JPanel();
+        summaryPanel.setLayout(new BoxLayout(summaryPanel, BoxLayout.Y_AXIS));
+        summaryPanel.setOpaque(false);
+
+        // 标题
+        JLabel titleLabel = new JLabel("✅ 代码修改完成");
+        titleLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, 15f));
+        titleLabel.setForeground(new JBColor(new Color(46, 125, 50), new Color(129, 199, 132)));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        summaryPanel.add(titleLabel);
+        summaryPanel.add(Box.createVerticalStrut(JBUI.scale(8)));
+
+        // 文件名
+        if (diffResult.getFileName() != null && !diffResult.getFileName().isEmpty()) {
+            JLabel fileLabel = new JLabel("📄 文件: " + diffResult.getFileName());
+            fileLabel.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, 13f));
+            fileLabel.setForeground(JBColor.foreground());
+            fileLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            summaryPanel.add(fileLabel);
+            summaryPanel.add(Box.createVerticalStrut(JBUI.scale(4)));
+        }
+
+        // 修改指令
+        if (diffResult.getInstruction() != null && !diffResult.getInstruction().isEmpty()) {
+            JLabel instructionLabel = new JLabel("📝 指令: " + diffResult.getInstruction());
+            instructionLabel.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, 13f));
+            instructionLabel.setForeground(JBColor.foreground());
+            instructionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            summaryPanel.add(instructionLabel);
+            summaryPanel.add(Box.createVerticalStrut(JBUI.scale(4)));
+        }
+
+        // 提示信息
+        JLabel tipLabel = new JLabel("💡 请在差异查看器中确认修改");
+        tipLabel.setFont(JBUI.Fonts.label().deriveFont(Font.ITALIC, 12f));
+        tipLabel.setForeground(JBUI.CurrentTheme.Label.disabledForeground());
+        tipLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        summaryPanel.add(tipLabel);
+
+        mainPanel.add(summaryPanel, BorderLayout.CENTER);
+
+        // 创建按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, JBUI.scale(8), JBUI.scale(4)));
+        buttonPanel.setOpaque(false);
+
+        // 查看差异按钮
+        JButton viewDiffButton = new JButton("查看差异");
+        viewDiffButton.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, 12f));
+        styleButton(viewDiffButton, new JBColor(new Color(25, 118, 210), new Color(66, 165, 245)), true);
+
+        viewDiffButton.addActionListener(e -> {
+            if (project != null) {
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        IntelliJDiffViewer.showDiffDialog(project, diffResult);
+                    } catch (Exception ex) {
+                        System.err.println("打开差异查看器失败: " + ex.getMessage());
+                        ex.printStackTrace();
+                    }
+                });
+            }
+        });
+
+        buttonPanel.add(viewDiffButton);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        outerPanel.add(mainPanel, BorderLayout.CENTER);
+        return outerPanel;
+    }
+
+    /**
+     * 设置按钮样式
+     */
+    private void styleButton(JButton button, Color color, boolean isPrimary) {
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setContentAreaFilled(true);
+
+        if (isPrimary) {
+            button.setBackground(color);
+            button.setForeground(Color.WHITE);
+        } else {
+            button.setBackground(lightenColor(JBColor.PanelBackground, 0.15f));
+            button.setForeground(JBColor.foreground());
+        }
+
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color, 1, true),
+                JBUI.Borders.empty(6, 12)));
+
+        // 添加悬停效果
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            private final Color originalBg = button.getBackground();
+            private final Color hoverBg = isPrimary
+                    ? color.darker()
+                    : lightenColor(JBColor.PanelBackground, 0.2f);
+
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                button.setBackground(hoverBg);
+                button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                button.setBackground(originalBg);
+                button.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            }
+        });
     }
 
     /**

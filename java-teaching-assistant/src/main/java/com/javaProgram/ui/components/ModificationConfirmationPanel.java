@@ -20,9 +20,10 @@ public class ModificationConfirmationPanel {
      * 创建修改确认面板
      * 
      * @param modificationId 修改ID
+     * @param fileName       修改的文件名
      * @return 确认面板
      */
-    public static JPanel create(String modificationId) {
+    public static JPanel create(String modificationId, String fileName) {
         // 主面板 - 使用BoxLayout以确保不限制后续消息
         JPanel wrapperPanel = new JPanel();
         wrapperPanel.setLayout(new BoxLayout(wrapperPanel, BoxLayout.Y_AXIS));
@@ -34,8 +35,8 @@ public class ModificationConfirmationPanel {
         messagePanel.setOpaque(false);
         messagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         messagePanel.setAlignmentY(Component.TOP_ALIGNMENT);
-        messagePanel.setMaximumSize(new Dimension(JBUI.scale(400), JBUI.scale(120)));
-        messagePanel.setPreferredSize(new Dimension(JBUI.scale(400), JBUI.scale(120)));
+        messagePanel.setMaximumSize(new Dimension(JBUI.scale(400), JBUI.scale(140)));
+        messagePanel.setPreferredSize(new Dimension(JBUI.scale(400), JBUI.scale(140)));
         messagePanel.setBorder(JBUI.Borders.compound(
                 JBUI.Borders.customLine(JBColor.BLUE, 1),
                 JBUI.Borders.empty(8)));
@@ -45,8 +46,9 @@ public class ModificationConfirmationPanel {
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.setOpaque(false);
 
-        // 消息文本
-        JTextArea messageText = new JTextArea("代码修改已完成！\n差异对比已在IntelliJ中显示。\n\n是否应用此修改？");
+        // 消息文本 - 显示文件名
+        String messageContent = "代码修改已完成！\n文件: " + (fileName != null ? fileName : "未知") + "\n差异对比已在IntelliJ中显示。";
+        JTextArea messageText = new JTextArea(messageContent);
         messageText.setEditable(false);
         messageText.setLineWrap(true);
         messageText.setWrapStyleWord(true);
@@ -62,10 +64,10 @@ public class ModificationConfirmationPanel {
         buttonPanel.setBorder(JBUI.Borders.empty(0, 8, 8, 8));
 
         // 接受按钮
-        JButton acceptButton = createAcceptButton(modificationId, wrapperPanel);
+        JButton acceptButton = createAcceptButton(modificationId, wrapperPanel, fileName);
 
         // 拒绝按钮
-        JButton rejectButton = createRejectButton(modificationId, wrapperPanel, acceptButton.getFont());
+        JButton rejectButton = createRejectButton(modificationId, wrapperPanel, acceptButton.getFont(), fileName);
 
         buttonPanel.add(acceptButton);
         buttonPanel.add(Box.createHorizontalStrut(JBUI.scale(10)));
@@ -90,7 +92,7 @@ public class ModificationConfirmationPanel {
     /**
      * 创建接受按钮
      */
-    private static JButton createAcceptButton(String modificationId, JPanel wrapperPanel) {
+    private static JButton createAcceptButton(String modificationId, JPanel wrapperPanel, String fileName) {
         JButton acceptButton = new JButton("✓ 接受修改");
         acceptButton.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, MINI_FONT_SIZE));
         acceptButton.setForeground(JBColor.GREEN);
@@ -107,13 +109,17 @@ public class ModificationConfirmationPanel {
         acceptButton.addActionListener(e -> {
             // 应用修改
             PendingModificationManager.applyModification(modificationId);
-            // 更新消息为已接受状态
-            updateModificationStatus(wrapperPanel, "✅ 修改已成功应用到编辑器！", JBColor.GREEN);
+            // 更新消息为已接受状态（删除按钮）
+            updateModificationStatus(wrapperPanel, "✅ 修改已成功应用到编辑器！", JBColor.GREEN, fileName);
         });
 
         acceptButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
+                // 只在按钮启用时响应悬停效果
+                if (!acceptButton.isEnabled()) {
+                    return;
+                }
                 // 颜色变深
                 acceptButton.setForeground(new Color(0, 204, 102));
                 acceptButton.setBorder(BorderFactory.createLineBorder(new Color(153, 255, 153), 1));
@@ -129,6 +135,10 @@ public class ModificationConfirmationPanel {
 
             @Override
             public void mouseExited(MouseEvent e) {
+                // 只在按钮启用时恢复原始样式
+                if (!acceptButton.isEnabled()) {
+                    return;
+                }
                 // 恢复原始颜色
                 acceptButton.setForeground(JBColor.GREEN);
                 acceptButton.setBorder(BorderFactory.createLineBorder(JBColor.GREEN, 1));
@@ -145,7 +155,8 @@ public class ModificationConfirmationPanel {
     /**
      * 创建拒绝按钮
      */
-    private static JButton createRejectButton(String modificationId, JPanel wrapperPanel, Font originalFont) {
+    private static JButton createRejectButton(String modificationId, JPanel wrapperPanel, Font originalFont,
+            String fileName) {
         JButton rejectButton = new JButton("✗ 拒绝修改");
         rejectButton.setFont(JBUI.Fonts.label().deriveFont(Font.PLAIN, MINI_FONT_SIZE));
         rejectButton.setForeground(JBColor.RED);
@@ -160,13 +171,17 @@ public class ModificationConfirmationPanel {
         rejectButton.addActionListener(e -> {
             // 拒绝修改
             PendingModificationManager.rejectModification(modificationId);
-            // 更新消息为已拒绝状态
-            updateModificationStatus(wrapperPanel, "❌ 修改已取消", JBColor.RED);
+            // 更新消息为已拒绝状态（删除按钮）
+            updateModificationStatus(wrapperPanel, "❌ 修改已取消", JBColor.RED, fileName);
         });
 
         rejectButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
+                // 只在按钮启用时响应悬停效果
+                if (!rejectButton.isEnabled()) {
+                    return;
+                }
                 // 颜色变深
                 rejectButton.setForeground(new Color(255, 51, 51));
                 rejectButton.setBorder(BorderFactory.createLineBorder(new Color(204, 0, 0), 1));
@@ -182,6 +197,10 @@ public class ModificationConfirmationPanel {
 
             @Override
             public void mouseExited(MouseEvent e) {
+                // 只在按钮启用时恢复原始样式
+                if (!rejectButton.isEnabled()) {
+                    return;
+                }
                 // 恢复原始颜色
                 rejectButton.setForeground(JBColor.RED);
                 rejectButton.setBorder(BorderFactory.createLineBorder(JBColor.RED, 1));
@@ -196,19 +215,20 @@ public class ModificationConfirmationPanel {
     }
 
     /**
-     * 更新修改状态
+     * 更新修改状态 - 删除按钮并显示结果
      */
-    private static void updateModificationStatus(JPanel wrapperPanel, String statusText, Color statusColor) {
+    private static void updateModificationStatus(JPanel wrapperPanel, String statusText, Color statusColor,
+            String fileName) {
         // 获取内部消息面板
         if (wrapperPanel.getComponentCount() > 0) {
             Component firstComponent = wrapperPanel.getComponent(0);
             if (firstComponent instanceof JPanel) {
                 JPanel messagePanel = (JPanel) firstComponent;
 
-                // 找到按钮面板并替换为状态标签
+                // 找到内容面板并删除按钮面板
                 Component[] components = messagePanel.getComponents();
                 for (Component component : components) {
-                    if (component instanceof JPanel && component != messagePanel.getComponent(0)) {
+                    if (component instanceof JPanel) {
                         JPanel contentPanel = (JPanel) component;
                         Component[] contentComponents = contentPanel.getComponents();
 
@@ -216,27 +236,40 @@ public class ModificationConfirmationPanel {
                         for (int i = 0; i < contentComponents.length; i++) {
                             Component contentComponent = contentComponents[i];
 
-                            // 找到按钮面板，替换为状态标签
+                            // 找到按钮面板（位于SOUTH位置），直接删除
                             if (contentComponent instanceof JPanel) {
-                                // 创建状态标签
-                                JLabel statusLabel = new JLabel(statusText);
-                                statusLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, SMALL_FONT_SIZE));
-                                statusLabel.setForeground(statusColor);
-                                statusLabel.setBorder(JBUI.Borders.empty(0, 8, 0, 8));
-                                statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                                JPanel buttonPanel = (JPanel) contentComponent;
+                                // 检查是否为按钮面板（包含按钮）
+                                boolean isButtonPanel = false;
+                                for (Component child : buttonPanel.getComponents()) {
+                                    if (child instanceof JButton) {
+                                        isButtonPanel = true;
+                                        break;
+                                    }
+                                }
 
-                                // 替换按钮面板为状态标签
-                                contentPanel.remove(i);
-                                contentPanel.add(statusLabel, BorderLayout.CENTER);
-                                break;
+                                if (isButtonPanel) {
+                                    // 创建状态标签
+                                    JLabel statusLabel = new JLabel(statusText);
+                                    statusLabel.setFont(JBUI.Fonts.label().deriveFont(Font.BOLD, SMALL_FONT_SIZE));
+                                    statusLabel.setForeground(statusColor);
+                                    statusLabel.setBorder(JBUI.Borders.empty(0, 8, 8, 8));
+                                    statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+                                    // 删除按钮面板，添加状态标签
+                                    contentPanel.remove(buttonPanel);
+                                    contentPanel.add(statusLabel, BorderLayout.SOUTH);
+                                    break;
+                                }
                             }
                         }
 
-                        // 更新主消息文本
+                        // 更新主消息文本 - 保留文件名信息
                         for (Component contentComponent : contentComponents) {
                             if (contentComponent instanceof JTextArea) {
                                 JTextArea textArea = (JTextArea) contentComponent;
-                                textArea.setText("AI代码修改：");
+                                String displayFileName = (fileName != null ? fileName : "未知");
+                                textArea.setText("AI代码修改：\n文件: " + displayFileName);
                                 textArea.setForeground(JBUI.CurrentTheme.Label.foreground());
                                 break;
                             }
@@ -250,9 +283,9 @@ public class ModificationConfirmationPanel {
                         JBUI.Borders.customLine(statusColor, 1),
                         JBUI.Borders.empty(8)));
 
-                // 调整面板高度以适应新内容
-                messagePanel.setPreferredSize(new Dimension(JBUI.scale(400), JBUI.scale(100)));
-                messagePanel.setMaximumSize(new Dimension(JBUI.scale(400), JBUI.scale(100)));
+                // 调整面板高度以适应新内容（按钮删除后高度减小）
+                messagePanel.setPreferredSize(new Dimension(JBUI.scale(400), JBUI.scale(90)));
+                messagePanel.setMaximumSize(new Dimension(JBUI.scale(400), JBUI.scale(90)));
 
                 // 刷新显示
                 wrapperPanel.revalidate();

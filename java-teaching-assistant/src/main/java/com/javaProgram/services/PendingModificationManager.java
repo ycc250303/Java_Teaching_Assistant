@@ -81,11 +81,6 @@ public class PendingModificationManager {
             // 关闭差异查看器
             closeDiffViewer(modification);
 
-            com.intellij.openapi.ui.Messages.showInfoMessage(
-                    modification.getProject(),
-                    "已取消代码修改。",
-                    "修改已取消");
-
             // 移除已处理的修改
             pendingModifications.remove(modificationId);
         }
