@@ -2,7 +2,6 @@ package com.example.aicodehelper.ai;
 
 import com.example.aicodehelper.ai.tools.InterviewQuestionTool;
 import com.example.aicodehelper.ai.tools.FileReaderTool;
-import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
@@ -22,9 +21,6 @@ public class AiCodeHelperServiceFactory {
 
     @Resource
     private ContentRetriever contentRetriever;
-
-    @Resource
-    private McpToolProvider mcpToolProvider;
 
     @Resource
     private StreamingChatModel qwenStreamingChatModel;
@@ -48,7 +44,6 @@ public class AiCodeHelperServiceFactory {
                 .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10)) // 独立存储会话
                 .contentRetriever(contentRetriever) // RAG 检索增强生成
                 .tools(new InterviewQuestionTool(), fileReaderTool())// 工具调用
-                .toolProvider(mcpToolProvider)// MCP 工具调用
                 .build();
     }
 }
