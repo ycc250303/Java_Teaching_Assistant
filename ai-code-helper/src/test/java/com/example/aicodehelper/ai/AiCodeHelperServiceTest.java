@@ -41,12 +41,6 @@ class AiCodeHelperServiceTest {
     }
 
     @Test
-    void chatWithMcp() {
-        String result = aiCodeHelperService.chat("什么是程序员鱼皮的编程导航？");
-        System.out.println(result);
-    }
-
-    @Test
     void chatWithGuardrail() {
         // Guardrail 应该拦截包含敏感词的输入
         // 这里测试的是 Guardrail 正确工作并抛出异常
