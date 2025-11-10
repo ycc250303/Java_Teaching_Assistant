@@ -1,0 +1,24 @@
+[Unit]
+Description=Java Teaching Assistant - AI Code Helper Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/ai-code-helper
+ExecStart=/usr/bin/java -jar -Xms512m -Xmx2048m -Dspring.profiles.active=prod /opt/ai-code-helper/ai-code-helper.jar
+ExecStop=/bin/kill -15 $MAINPID
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ai-code-helper
+
+# ========== API Key 环境变量配置（必需）==========
+# 请替换为你的真实 API Key
+Environment="DASHSCOPE_API_KEY=your-dashscope-api-key-here"
+# ==================================================
+
+[Install]
+WantedBy=multi-user.target
+

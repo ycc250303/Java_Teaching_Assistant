@@ -1,11 +1,7 @@
 package com.example.aicodehelper.config;
 
-import dev.langchain4j.community.model.dashscope.QwenChatModel;
 import dev.langchain4j.community.model.dashscope.QwenEmbeddingModel;
-import dev.langchain4j.community.model.dashscope.QwenStreamingChatModel;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
@@ -25,19 +21,8 @@ public class AiModelConfig {
     @Value("${langchain4j.community.dashscope.chat-model.api-key}")
     private String apiKey;
 
-    @Value("${langchain4j.community.dashscope.chat-model.model-name}")
-    private String modelName;
-
     // 向量数据持久化路径
     private static final String EMBEDDING_STORE_PATH = "embedding-store.json";
-
-    @Bean
-    public ChatModel chatModel() {
-        return QwenChatModel.builder()
-                .apiKey(apiKey)
-                .modelName(modelName)
-                .build();
-    }
 
     @Bean
     public EmbeddingModel embeddingModel() {

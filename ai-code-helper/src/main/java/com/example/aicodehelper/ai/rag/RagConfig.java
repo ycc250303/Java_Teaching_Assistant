@@ -11,6 +11,7 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import java.util.HashMap;
@@ -33,17 +34,19 @@ public class RagConfig {
     @Resource
     private EnhancedDocumentLoader enhancedDocumentLoader;
 
+    @Value("${rag.documents-path}")
+    private String documentsPath;
+
     @Bean
     public ContentRetriever contentRetriever() {
         // ------ 增强版RAG ------
         log.info("开始初始化RAG系统...");
 
         // 1. 使用增强的文档加载器加载所有支持格式的文档
-        String documentsPath = "src/main/resources/docs";
         log.info("正在从目录加载文档: {}", documentsPath);
         log.info("支持的格式: {}", enhancedDocumentLoader.getSupportedFormats());
 
-        List<Document> documents = enhancedDocumentLoader.loadAllDocuments(documentsPath);
+        List<Document> documents = enhancedDocumentLoader.loadAllDocuments(this.documentsPath);
 
         if (documents.isEmpty()) {
             log.warn("未找到任何文档，RAG功能将无法正常工作");

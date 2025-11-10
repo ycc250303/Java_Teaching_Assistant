@@ -12,6 +12,8 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+  jackson:
+    default-property-inclusion: non_null
 server:
   port: 8081
   servlet:
@@ -20,17 +22,20 @@ server:
       charset: UTF-8
       enabled: true
       force: true
+
+# RAG 文档路径配置
+rag:
+  documents-path: src/main/resources/docs  # 开发环境：相对路径
+
 langchain4j:
   community:
     dashscope:
       chat-model:
         model-name: qwen-max
-        api-key: sk-ebcbb1714eeb4596a6098b3e0d5c21e6 # 通义千问的 key
+        api-key: ${DASHSCOPE_API_KEY} # 从环境变量读取
       streaming-chat-model:
         model-name: qwen-max
-        api-key: sk-ebcbb1714eeb4596a6098b3e0d5c21e6 # 通义千问的 key
+        api-key: ${DASHSCOPE_API_KEY} # 从环境变量读取
       embedding-model:
         model-name: text-embedding-v4
-        api-key: sk-ebcbb1714eeb4596a6098b3e0d5c21e6 # 通义千问的 key
-bigmodel:
-  api-key: 328904f8a42b41deaf4f951ed3abd86a.h3oVYYCDZfvm80hI # 智谱的 key
+        api-key: ${DASHSCOPE_API_KEY} # 从环境变量读取

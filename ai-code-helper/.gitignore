@@ -36,3 +36,11 @@ build/
 ### RAG Vector Store ###
 embedding-store.json
 document-fingerprint.json
+
+### API Key 安全 ###
+.env
+*.env
+!.env.example
+application-local.yml
+*-secret.yml
+deploy/env-setup.sh.local
