@@ -56,12 +56,12 @@ public class MarkdownToHtml {
             code = escapeHtml(code);
             String placeholder = "___CODE_BLOCK_" + placeholderIndex + "___";
             // 使用div替代pre，更好地控制换行（移除不兼容的CSS属性）
-            // 使用 white-space: pre-wrap 允许换行，同时保留空格和换行符
+            // 移除 white-space: pre-wrap，使用更兼容的方式
             codeBlockPlaceholders.put(placeholder,
                     "<div style='background-color: " + codeBlockBgHex + "; border: 1px solid "
                             + darkenColorHex(codeBlockBgHex, 0.2)
                             + "; padding: 10px; margin: 8px 0; font-family: monospace; font-size: 12px; color: "
-                            + codeTextColorHex + "; white-space: pre-wrap;'>" + code
+                            + codeTextColorHex + ";'>" + code
                             + "</div>");
             codeBlockMatcher.appendReplacement(codeBlockResult, placeholder);
             placeholderIndex++;
