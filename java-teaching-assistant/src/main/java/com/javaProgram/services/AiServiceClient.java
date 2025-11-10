@@ -13,10 +13,18 @@ import java.util.function.Consumer;
  * 使用统一的HTTP和JSON工具类，消除代码重复
  */
 public class AiServiceClient {
-    private static final String BASE_URL = "http://localhost:8081/api/ai/chat";
-    private static final String MODIFY_CODE_URL = "http://localhost:8081/api/ai/modify-code";
-    private static final String MODIFY_CODE_WITH_DIFF_URL = "http://localhost:8081/api/ai/modify-code-with-diff";
-    private static final String DETECT_INTENT_URL = "http://localhost:8081/api/ai/detect-intent";
+    // ============ 后端服务器配置 ============
+    // 切换本地开发和远程服务器：将 USE_REMOTE_SERVER 设置为 true 使用远程服务器
+    private static final boolean USE_REMOTE_SERVER = false; // true: 使用远程服务器, false: 使用本地服务器
+
+    private static final String LOCAL_SERVER = "http://localhost:8081";
+    private static final String REMOTE_SERVER = "http://111.229.81.45:8081";
+    private static final String SERVER_BASE = USE_REMOTE_SERVER ? REMOTE_SERVER : LOCAL_SERVER;
+
+    private static final String BASE_URL = SERVER_BASE + "/api/ai/chat";
+    private static final String MODIFY_CODE_URL = SERVER_BASE + "/api/ai/modify-code";
+    private static final String MODIFY_CODE_WITH_DIFF_URL = SERVER_BASE + "/api/ai/modify-code-with-diff";
+    private static final String DETECT_INTENT_URL = SERVER_BASE + "/api/ai/detect-intent";
 
     private int memoryId;
 
