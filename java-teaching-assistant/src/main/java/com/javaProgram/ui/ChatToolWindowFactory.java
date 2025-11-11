@@ -4,20 +4,26 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.openapi.project.DumbAware;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
-import com.intellij.util.ui.JBUI;
 import org.jetbrains.annotations.NotNull;
 
-public class ChatToolWindowFactory implements ToolWindowFactory {
+public class ChatToolWindowFactory implements ToolWindowFactory, DumbAware {
 
     // 定义用户数据的Key（使用 Key<T> 而不是 String）
     private static final Key<ChatToolWindowContent> CHAT_CONTENT_KEY = Key.create("ChatToolWindowContent");
 
     @Override
+    public boolean shouldBeAvailable(@NotNull Project project) {
+        return true;
+    }
+
+    @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
         // 设置工具窗口标题
         toolWindow.setTitle("智能助手");
+        toolWindow.setToHideOnEmptyContent(false);
 
         // 创建聊天窗口UI
         ChatToolWindowContent chatToolWindowContent = new ChatToolWindowContent(project);
