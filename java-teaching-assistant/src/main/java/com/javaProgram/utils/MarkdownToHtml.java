@@ -46,7 +46,8 @@ public class MarkdownToHtml {
         int placeholderIndex = 0;
 
         // 1. 先处理代码块 ```language ... ```，用占位符替换
-        Pattern codeBlockPattern = Pattern.compile("```(\\w*)?\\n?([\\s\\S]*?)```", Pattern.MULTILINE);
+        // 修复正则表达式，确保正确捕获代码内容和换行符
+        Pattern codeBlockPattern = Pattern.compile("```(\\w*)\\s*\\n?([\\s\\S]*?)```", Pattern.MULTILINE);
         java.util.regex.Matcher codeBlockMatcher = codeBlockPattern.matcher(html);
         StringBuffer codeBlockResult = new StringBuffer();
         while (codeBlockMatcher.find()) {
@@ -55,14 +56,17 @@ public class MarkdownToHtml {
             // 转义代码块内的HTML特殊字符
             code = escapeHtml(code);
             String placeholder = "___CODE_BLOCK_" + placeholderIndex + "___";
-            // 使用div替代pre，更好地控制换行（移除不兼容的CSS属性）
-            // 移除 white-space: pre-wrap，使用更兼容的方式
+            // 修改代码块HTML结构，确保完整的矩形背景和智能缩进显示
+            // 智能添加缩进：如果代码缺少缩进，尝试自动添加
+            String processedCode = addSmartIndentation(code);
+
             codeBlockPlaceholders.put(placeholder,
-                    "<div style='background-color: " + codeBlockBgHex + "; border: 1px solid "
-                            + darkenColorHex(codeBlockBgHex, 0.2)
-                            + "; padding: 10px; margin: 8px 0; font-family: monospace; font-size: 12px; color: "
-                            + codeTextColorHex + ";'>" + code
-                            + "</div>");
+                    "<table width='100%' cellpadding='0' cellspacing='0' style='margin: 8px 0;'>"
+                    + "<tr><td style='background-color: " + codeBlockBgHex + "; border: 1px solid "
+                    + darkenColorHex(codeBlockBgHex, 0.2) + "; padding: 10px; font-family: Consolas, Monaco, \"Courier New\", monospace; font-size: 12px; color: "
+                    + codeTextColorHex + "; white-space: pre; overflow-x: auto; tab-size: 4; -moz-tab-size: 4; word-break: normal; -webkit-hyphens: none; -moz-hyphens: none; hyphens: none;'>"
+                    + processedCode
+                    + "</td></tr></table>");
             codeBlockMatcher.appendReplacement(codeBlockResult, placeholder);
             placeholderIndex++;
         }
@@ -120,12 +124,12 @@ public class MarkdownToHtml {
         html = html.replaceAll("\\[([^\\]]+)\\]\\(([^\\)]+)\\)", "<a href='$2' style='color: #0066cc;'>$1</a>");
 
         // 12. 处理段落分隔和换行（在最后处理，确保不影响其他元素）
-        html = processParagraphs(html);
+        html = processParagraphs(html, codeBlockPlaceholders);
 
-        // 13. 包裹在div中，设置基本样式（使用简单的字体族，避免引号问题）
+        // 13. 包裹在div中，设置基本样式（简化样式，提高兼容性）
         // 获取文本颜色（RGB十六进制）
         String colorHex = textColor != null ? colorToHex(textColor) : "#333333";
-        html = "<div style='font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: " + colorHex
+        html = "<div style='font-family: Arial; font-size: 14px; color: " + colorHex
                 + "; padding: 8px;'>"
                 + html + "</div>";
 
@@ -174,7 +178,7 @@ public class MarkdownToHtml {
      * 标签
      * 保护已处理的块级元素（标题、列表、引用、代码块等）
      */
-    private static String processParagraphs(String html) {
+    private static String processParagraphs(String html, java.util.Map<String, String> codeBlockPlaceholders) {
         if (html == null || html.trim().isEmpty()) {
             return "";
         }
@@ -183,11 +187,19 @@ public class MarkdownToHtml {
         java.util.Map<String, String> blockPlaceholders = new java.util.HashMap<>();
         int placeholderIndex = 0;
 
+        // 首先保护代码块占位符，避免被段落处理破坏
+        for (java.util.Map.Entry<String, String> codeEntry : codeBlockPlaceholders.entrySet()) {
+            String placeholder = codeEntry.getKey();
+            String newPlaceholder = "___BLOCK_PLACEHOLDER_" + placeholderIndex + "___";
+            blockPlaceholders.put(newPlaceholder, placeholder);
+            placeholderIndex++;
+        }
+
         // 保护已处理的块级元素（标题、列表、引用、代码块等）
         // 这些元素不应该被段落处理影响
-        // 注意：不保护行内<code>标签，只保护块级元素
+        // 注意：不保护行内<code>标签，只保护块级元素，现在包含table（代码块使用table）
         Pattern blockElementPattern = Pattern.compile(
-                "(<(?:h[1-6]|ul|ol|li|blockquote|pre)[^>]*>.*?</(?:h[1-6]|ul|ol|li|blockquote|pre)>|<(?:h[1-6]|ul|ol|blockquote|pre)[^>]*/>)",
+                "(<(?:h[1-6]|ul|ol|li|blockquote|pre|div|table)[^>]*>.*?</(?:h[1-6]|ul|ol|li|blockquote|pre|div|table)>|<(?:h[1-6]|ul|ol|blockquote|pre|div|table)[^>]*/>)",
                 Pattern.DOTALL);
         java.util.regex.Matcher blockMatcher = blockElementPattern.matcher(html);
         StringBuffer blockResult = new StringBuffer();
@@ -201,14 +213,33 @@ public class MarkdownToHtml {
         blockMatcher.appendTail(blockResult);
         html = blockResult.toString();
 
-        // 现在处理段落分隔和换行
+        // 先恢复代码块占位符，但暂时用特殊标记保护它们，避免被换行处理影响
+        java.util.Map<String, String> tempCodeBlocks = new java.util.HashMap<>();
+        for (java.util.Map.Entry<String, String> entry : blockPlaceholders.entrySet()) {
+            String value = entry.getValue();
+            // 检查是否是代码块占位符
+            if (value.startsWith("___CODE_BLOCK_")) {
+                // 恢复实际的代码块HTML，但用临时占位符保护
+                String codeBlockHtml = codeBlockPlaceholders.get(value);
+                if (codeBlockHtml != null) {
+                    String tempPlaceholder = "___TEMP_CODE_BLOCK_" + entry.getKey().substring(entry.getKey().lastIndexOf('_') + 1) + "___";
+                    tempCodeBlocks.put(tempPlaceholder, codeBlockHtml);
+                    html = html.replace(entry.getKey(), tempPlaceholder);
+                }
+            } else {
+                // 恢复其他块级元素
+                html = html.replace(entry.getKey(), value);
+            }
+        }
+
+        // 现在处理段落分隔和换行（只影响非代码块内容）
         // 先处理双换行（两个或更多连续换行符）转换为段落分隔
         html = html.replaceAll("\n\n+", "</p><p style='margin: 8px 0;'>");
         // 再处理单换行转换为<br/>
         html = html.replaceAll("\n", "<br/>");
 
-        // 恢复块级元素占位符
-        for (java.util.Map.Entry<String, String> entry : blockPlaceholders.entrySet()) {
+        // 最后恢复代码块HTML
+        for (java.util.Map.Entry<String, String> entry : tempCodeBlocks.entrySet()) {
             html = html.replace(entry.getKey(), entry.getValue());
         }
 
@@ -287,5 +318,48 @@ public class MarkdownToHtml {
             // 如果解析失败，返回原颜色
             return hexColor;
         }
+    }
+
+    /**
+     * 智能添加代码缩进 - 简化版本
+     */
+    private static String addSmartIndentation(String code) {
+        if (code == null || code.trim().isEmpty()) {
+            return code;
+        }
+
+        String[] lines = code.split("\n");
+        StringBuilder result = new StringBuilder();
+        int currentIndent = 0; // 当前缩进级别
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+
+            if (line.isEmpty()) {
+                // 空行保持不变
+                result.append("\n");
+                continue;
+            }
+
+            // 先检查是否需要减少缩进（在处理当前行之前）
+            if (line.startsWith("}") || line.startsWith("]")) {
+                currentIndent = Math.max(0, currentIndent - 1);
+            }
+
+            // 应用当前缩进
+            String indentStr = "&nbsp;".repeat(currentIndent * 4); // 每级缩进4个空格
+            result.append(indentStr).append(line);
+
+            // 再检查是否需要增加缩进（在处理完当前行之后）
+            if (line.endsWith("{") || line.endsWith(":")) {
+                currentIndent++;
+            }
+
+            if (i < lines.length - 1) {
+                result.append("\n");
+            }
+        }
+
+        return result.toString();
     }
 }
