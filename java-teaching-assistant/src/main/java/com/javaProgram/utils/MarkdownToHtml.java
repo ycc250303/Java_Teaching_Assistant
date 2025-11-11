@@ -47,12 +47,21 @@ public class MarkdownToHtml {
 
         // 1. 先处理代码块 ```language ... ```，用占位符替换
         // 修复正则表达式，确保正确捕获代码内容和换行符
-        Pattern codeBlockPattern = Pattern.compile("```(\\w*)\\s*\\n?([\\s\\S]*?)```", Pattern.MULTILINE);
+        // 移除结束标记前的强制换行要求，避免吞掉代码内容
+        Pattern codeBlockPattern = Pattern.compile("```(?:(java|javascript|python|cpp|c|go|rust|sql|html|css|json|xml|yaml|yml|sh|bash|php|ruby|swift|kotlin|scala|typescript|markdown|md))?\\s*([\\s\\S]*?)```", Pattern.MULTILINE);
         java.util.regex.Matcher codeBlockMatcher = codeBlockPattern.matcher(html);
         StringBuffer codeBlockResult = new StringBuffer();
         while (codeBlockMatcher.find()) {
-            // String language = codeBlockMatcher.group(1); // 暂时不使用语言信息
-            String code = codeBlockMatcher.group(2);
+            String language = codeBlockMatcher.group(1); // 语言标识符（可能为null）
+            String code = codeBlockMatcher.group(2);     // 代码内容
+
+            // 调试信息：检查代码是否被正确捕获
+            if (code != null && code.length() > 0) {
+                // 检查代码开头是否被意外截断
+                if (code.startsWith("\n")) {
+                    code = code.substring(1); // 移除开头的换行符
+                }
+            }
             // 转义代码块内的HTML特殊字符
             code = escapeHtml(code);
             String placeholder = "___CODE_BLOCK_" + placeholderIndex + "___";
@@ -158,7 +167,7 @@ public class MarkdownToHtml {
      * 将连续的列表项包裹在ul标签中
      */
     private static String wrapListItems(String html) {
-        // 简单的实现：找到连续的<li>标签并包裹
+        // 找到连续的<li>标签并包裹
         Pattern listPattern = Pattern.compile("(<li[^>]*>.*?</li>(?:\\s*<li[^>]*>.*?</li>)*)", Pattern.DOTALL);
         java.util.regex.Matcher matcher = listPattern.matcher(html);
         StringBuffer result = new StringBuffer();
@@ -321,7 +330,7 @@ public class MarkdownToHtml {
     }
 
     /**
-     * 智能添加代码缩进 - 简化版本
+     * 智能添加代码缩进
      */
     private static String addSmartIndentation(String code) {
         if (code == null || code.trim().isEmpty()) {
@@ -333,25 +342,27 @@ public class MarkdownToHtml {
         int currentIndent = 0; // 当前缩进级别
 
         for (int i = 0; i < lines.length; i++) {
-            String line = lines[i].trim();
+            String line = lines[i];
+            // 保留原始缩进，只在需要时添加额外缩进
+            String trimmedLine = line.trim();
 
-            if (line.isEmpty()) {
+            if (trimmedLine.isEmpty()) {
                 // 空行保持不变
                 result.append("\n");
                 continue;
             }
 
             // 先检查是否需要减少缩进（在处理当前行之前）
-            if (line.startsWith("}") || line.startsWith("]")) {
+            if (trimmedLine.startsWith("}") || trimmedLine.startsWith("]")) {
                 currentIndent = Math.max(0, currentIndent - 1);
             }
 
-            // 应用当前缩进
+            // 应用当前缩进，保留原始代码的缩进
             String indentStr = "&nbsp;".repeat(currentIndent * 4); // 每级缩进4个空格
             result.append(indentStr).append(line);
 
             // 再检查是否需要增加缩进（在处理完当前行之后）
-            if (line.endsWith("{") || line.endsWith(":")) {
+            if (trimmedLine.endsWith("{") || trimmedLine.endsWith(":")) {
                 currentIndent++;
             }
 

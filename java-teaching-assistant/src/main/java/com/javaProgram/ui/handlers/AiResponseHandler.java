@@ -122,9 +122,30 @@ public class AiResponseHandler {
                 return true;
             }
 
-            // 3. 注释行
-            if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {
+            // 3. 注释行处理 - 更保守的策略，避免在流式传输时错误换行
+            if (trimmed.startsWith("//")) {
+                // 单行注释：只在确实完整时才换行
+                // 如果注释包含未完成的代码结构，不换行
+                if (trimmed.contains("{") && !trimmed.contains("}")) {
+                    return false; // 未闭合的大括号，不换行
+                }
+                if (trimmed.contains("/*") && !trimmed.contains("*/")) {
+                    return false; // 未闭合的多行注释，不换行
+                }
+                // 简单的注释或者已完成的代码结构，可以换行
                 return true;
+            }
+            if (trimmed.startsWith("/*")) {
+                // 多行注释开始：只在同一行内完整时才换行
+                if (trimmed.contains("*/")) {
+                    return true; // 完整的多行注释在一行内
+                }
+                return false; // 多行注释开始，但未结束，不换行
+            }
+            if (trimmed.startsWith("*")) {
+                // JavaDoc注释中的*行：通常换行
+                // 但如果是注释中间的内容，可能不换行
+                return trimmed.length() > 1; // 只有 "*" 不换行，有内容才换行
             }
 
             // 4. 访问修饰符行（如public, private, static等单独出现）
