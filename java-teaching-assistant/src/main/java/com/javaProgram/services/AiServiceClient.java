@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 public class AiServiceClient {
     // ============ 后端服务器配置 ============
     // 切换本地开发和远程服务器：将 USE_REMOTE_SERVER 设置为 true 使用远程服务器，将REMOTE_SERVER 设置为远程服务器的IP地址
-    private static final boolean USE_REMOTE_SERVER = true; // true: 使用远程服务器, false: 使用本地服务器
+    private static final boolean USE_REMOTE_SERVER = false; // true: 使用远程服务器, false: 使用本地服务器
 
     private static final String LOCAL_SERVER = "http://localhost:8081";
     private static final String REMOTE_SERVER = "http://111.229.81.45:8081";
