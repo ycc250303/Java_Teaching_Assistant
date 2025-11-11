@@ -5,7 +5,6 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 import com.intellij.ui.JBColor;
 import com.javaProgram.services.ContextService;
-import com.javaProgram.ui.components.handlers.CodeBlockPasteHandler;
 import com.javaProgram.ui.components.handlers.FileDropHandler;
 import com.javaProgram.ui.components.handlers.InputHintManager;
 
@@ -29,7 +28,6 @@ public class ChatInputPanel extends JPanel {
 
     // 处理器
     private final FileDropHandler fileDropHandler;
-    private final CodeBlockPasteHandler codeBlockPasteHandler;
     private final InputHintManager hintManager;
 
     // 回调
@@ -66,14 +64,9 @@ public class ChatInputPanel extends JPanel {
         hintManager = new InputHintManager(inputField);
         fileDropHandler = new FileDropHandler(project, contextService,
                 hintManager::showErrorHint, this::notifyContextAdded);
-        codeBlockPasteHandler = new CodeBlockPasteHandler(project, contextService,
-                hintManager::showErrorHint, this::notifyContextAdded);
 
         // 设置快捷键
         setupKeyBindings();
-
-        // 设置粘贴监听器
-        setupPasteListener();
 
         // 设置拖拽和粘贴处理器
         setupTransferHandler();
@@ -284,27 +277,6 @@ public class ChatInputPanel extends JPanel {
     }
 
     /**
-     * 设置粘贴监听器
-     */
-    private void setupPasteListener() {
-        InputMap inputMap = inputField.getInputMap(JComponent.WHEN_FOCUSED);
-        ActionMap actionMap = inputField.getActionMap();
-
-        // 绑定 Ctrl+V
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_V, KeyEvent.CTRL_DOWN_MASK), "paste-with-detection");
-
-        actionMap.put("paste-with-detection", new AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                if (!codeBlockPasteHandler.handlePaste()) {
-                    // 如果不是代码块，执行普通粘贴
-                    inputField.paste();
-                }
-            }
-        });
-    }
-
-    /**
      * 设置 TransferHandler（拖拽和粘贴支持）
      */
     private void setupTransferHandler() {
@@ -356,16 +328,10 @@ public class ChatInputPanel extends JPanel {
                     // 2. 处理文本粘贴
                     if (support.isDataFlavorSupported(DataFlavor.stringFlavor)) {
                         String pastedText = (String) transferable.getTransferData(DataFlavor.stringFlavor);
-
-                        if (codeBlockPasteHandler.handlePastedText(pastedText)) {
-                            // 识别为代码块，已添加到上下文
-                            return true;
-                        } else {
-                            // 不是代码块，执行默认粘贴
-                            int caretPosition = inputField.getCaretPosition();
-                            inputField.insert(pastedText, caretPosition);
-                            return true;
-                        }
+                        // 执行默认粘贴
+                        int caretPosition = inputField.getCaretPosition();
+                        inputField.insert(pastedText, caretPosition);
+                        return true;
                     }
                 } catch (Exception ex) {
                     return false;
