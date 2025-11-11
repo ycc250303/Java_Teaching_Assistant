@@ -40,8 +40,8 @@
 
 - F0基础功能完成情况（100%）
 - F2扩展功能完成情况（100%）
-- 新增功能：请求队列系统、多文件修改等
-- 技术亮点和附加功能
+- 新增功能：请求队列系统、多文件修改、HTTPS部署等
+- 技术亮点和附加功能（包含部署与安全特性）
 - 待开发功能规划（包括多会话管理设计方案）
 
 ### 🎉 核心功能状态
@@ -51,125 +51,186 @@
 
 ---
 
-## 💻 本地开发部署
+## 💻 快速开始
+
+### 架构说明
+
+本项目采用**集中后端服务器架构**：
+
+```
+┌─────────────────────┐           ┌────────────────────────┐
+│  IntelliJ IDEA      │           │   远程服务器           │
+│  插件 (客户端)      │  ────────>│   Spring Boot 后端     │
+│                     │   HTTP    │   (统一配置API Key)    │
+└─────────────────────┘           └────────────────────────┘
+     多个用户                            集中管理
+```
+
+**特点：**
+- ✅ 用户无需配置API Key
+- ✅ 后端统一管理AI服务
+- ✅ 安装即用，开箱即用
+- ✅ 数据集中存储和管理
 
 ### 前置准备
 
 1. **安装 Java 21+**
-
    - 下载并安装 JDK 21 或更高版本
    - 配置 `JAVA_HOME` 环境变量
-2. **安装 IntelliJ IDEA**
 
+2. **安装 IntelliJ IDEA**
    - 下载 IDEA 社区版或企业版
    - 安装 Plugin DevKit 插件
-3. **获取 API Key**
 
-   - 访问 [通义千问控制台](https://dashscope.console.aliyun.com/apiKey)
-   - 注册/登录阿里云账号并开通 DashScope 服务
-   - 创建 API Key（格式：`sk-xxxxxxxxxxxxxx`）
+### 步骤1: 安装插件
 
-### 步骤1: 配置 API Key（必需）
+**方式1：从发布包安装（推荐）**
 
-**Windows:**
+1. 下载插件 ZIP 包：`java-teaching-assistant-1.0-SNAPSHOT.zip`
+2. 打开 IDEA → Settings → Plugins
+3. 点击齿轮图标 ⚙️ → Install Plugin from Disk...
+4. 选择下载的 ZIP 文件
+5. 重启 IDEA
 
-1. 右键 `此电脑` → `属性` → `高级系统设置` → `环境变量`
-2. 在 `用户变量` 中点击 `新建`
-3. 变量名：`DASHSCOPE_API_KEY`
-4. 变量值：`sk-your-real-api-key-here`
-5. 点击 `确定` 保存
-6. **重启 IDEA** 使环境变量生效
+**方式2：本地开发运行**
 
-### 步骤2: 启动后端服务
-
-1. 在 IDEA 中打开 `ai-code-helper` 项目
-2. 找到 `src/main/java/com/example/aicodehelper/AiCodeHelperApplication.java`
-3. 右键 → `Run 'AiCodeHelperApplication'`
-4. 等待服务启动，看到以下日志表示成功：
-   ```
-   Started AiCodeHelperApplication in X.XXX seconds
-   Tomcat started on port 8081
-   ```
-
-**或使用命令行启动：**
-
-```batch
-cd ai-code-helper
-mvnw.cmd spring-boot:run
-```
-
-### 步骤3: 运行插件
-
-1. 在 IDEA 中打开 `java-teaching-assistant` 项目
-2. 确保后端服务已启动（localhost:8081）
+1. 克隆项目到本地
+2. 用 IDEA 打开 `java-teaching-assistant` 项目
 3. 打开 Gradle 面板，找到 `Tasks` → `intellij` → `runIde`
 4. 双击运行，会启动一个新的 IDEA 实例（带插件）
-5. 在新的 IDEA 实例中：
-   - 打开或创建一个 Java 项目
-   - 在右侧工具栏找到 `Java AI Assistant` 窗口
-   - 开始使用聊天功能
 
-### 验证部署
+### 步骤2: 使用插件
 
-**测试后端服务：**
+1. 在右侧工具栏找到 **"智能会话"** 窗口
+2. 输入问题，例如："Java 中的继承是什么？"
+3. AI 会基于课程资料回答，并标注信息来源
+4. 选中代码 → 右键 → "添加到AI上下文" / "向AI提问此代码" / "AI修改代码"
 
+### 步骤3: 验证连接
+
+插件会自动连接到远程服务器（`http://111.229.81.45:8081`）
+
+**测试方法：**
 ```batch
-curl http://localhost:8081
+curl http://111.229.81.45:8081
+# 应该返回服务信息
 ```
 
-**测试插件功能：**
-
-1. 在插件窗口中输入 "你好"
-2. 应该收到 AI 的回复
-3. 尝试添加代码上下文、代码修改等功能
-
-### 修改后端服务地址（可选）
-
-如果需要连接远程服务器而非本地：
-
-1. 打开 `java-teaching-assistant/src/main/java/com/javaProgram/services/AiServiceClient.java`
-2. 找到 `USE_REMOTE_SERVER` 常量
-3. 修改为 `true` 并设置 `REMOTE_SERVER_URL`：
-   ```java
-   private static final boolean USE_REMOTE_SERVER = true;
-   private static final String REMOTE_SERVER_URL = "http://your-server-ip:8081";
-   ```
+如果连接失败，请联系管理员检查服务器状态。
 
 ### 常见问题
 
-**Q: 启动失败，提示 `Could not resolve placeholder 'DASHSCOPE_API_KEY'`**
-
-A: API Key 未正确配置，请按照步骤1重新配置环境变量，并重启 IDEA。
-
 **Q: 插件无法连接后端服务**
 
-A: 检查后端服务是否正常运行（`http://localhost:8081`），确保端口8081未被占用。
+A: 检查远程服务器是否正常运行（`http://111.229.81.45:8081`），联系管理员确认服务状态。
 
-**Q: RAG 功能不工作**
+**Q: AI 回复速度慢**
 
-A: 确保 `ai-code-helper/src/main/resources/docs/` 目录下有 PDF 文档。首次启动会自动向量化文档。
+A: 这是正常现象，AI 需要思考时间。请耐心等待流式响应。
+
+**Q: 想要修改后端服务器地址**
+
+A: 打开 `java-teaching-assistant/src/main/java/com/javaProgram/services/AiServiceClient.java`，修改 `REMOTE_SERVER` 常量。
 
 ---
 
-## 🚀 后端部署到Linux服务器
-
-完整的部署指南请查看：
-
-📖 **[部署指南](ai-code-helper/deploy/README.md)** - 完整的部署参考手册（含API Key安全配置）
+## 🚀 后端服务器部署（管理员）
 
 ### 环境要求
-
-**服务器:**
 
 - Linux (Ubuntu 20.04+, CentOS 7+, Debian 10+)
 - Java 21+
 - 至少 2GB RAM
+- 通义千问 API Key
 
-**本地:**
+### ⚡ 快速部署流程
 
-- Windows 10/11
-- Java 21+
-- 文件传输工具 (WinSCP/FileZilla)
+#### 1. 配置 API Key
+
+**在服务器上设置环境变量：**
+
+```bash
+# 编辑 /etc/environment
+sudo nano /etc/environment
+
+# 添加一行
+DASHSCOPE_API_KEY=sk-your-api-key-here
+
+# 重新加载
+source /etc/environment
+```
+
+#### 2. 打包并上传
+
+**本地打包：**
+```bash
+cd ai-code-helper
+mvnw.cmd clean package -DskipTests
+```
+
+**上传到服务器：**
+```bash
+scp target/ai-code-helper-0.0.1-SNAPSHOT.jar root@111.229.81.45:/opt/ai-code-helper/
+```
+
+#### 3. 配置 systemd 服务
+
+```bash
+# 创建服务文件
+sudo nano /etc/systemd/system/ai-code-helper.service
+```
+
+```ini
+[Unit]
+Description=AI Code Helper Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/ai-code-helper
+Environment="DASHSCOPE_API_KEY=sk-your-api-key-here"
+ExecStart=/usr/bin/java -jar ai-code-helper-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### 4. 启动服务
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable ai-code-helper
+sudo systemctl start ai-code-helper
+sudo systemctl status ai-code-helper
+```
+
+#### 5. 验证部署
+
+```bash
+curl http://localhost:8081
+# 应该返回服务信息
+```
+
+### 服务管理命令
+
+```bash
+sudo systemctl start ai-code-helper    # 启动
+sudo systemctl stop ai-code-helper     # 停止
+sudo systemctl restart ai-code-helper  # 重启
+sudo systemctl status ai-code-helper   # 状态
+sudo journalctl -u ai-code-helper -f   # 日志
+```
+
+### 注意事项
+
+⚠️ **API Key 安全**：
+- 使用环境变量存储 API Key
+- 不要将 API Key 提交到 Git
+- 定期更换 API Key
+- 监控 API 使用量
 
 ---
 

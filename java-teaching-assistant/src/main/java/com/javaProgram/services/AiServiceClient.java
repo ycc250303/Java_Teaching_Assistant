@@ -18,7 +18,7 @@ public class AiServiceClient {
     private static final boolean USE_REMOTE_SERVER = true; // true: 使用远程服务器, false: 使用本地服务器
 
     private static final String LOCAL_SERVER = "http://localhost:8081";
-    private static final String REMOTE_SERVER = "http://your-serivce-ip:8081";
+    private static final String REMOTE_SERVER = "http://111.229.81.45:8081";
     private static final String SERVER_BASE = USE_REMOTE_SERVER ? REMOTE_SERVER : LOCAL_SERVER;
 
     private static final String BASE_URL = SERVER_BASE + "/api/ai/chat";
