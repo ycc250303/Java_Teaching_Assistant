@@ -59,7 +59,12 @@ public class AiResponseHandler {
     public void appendChunk(String chunk) {
         if (currentAiMessage != null && accumulatedMarkdown != null) {
             // 累积Markdown内容
-            accumulatedMarkdown.append(chunk);
+            // 智能添加换行符：如果是代码行且不以换行符结尾，则添加换行符
+            if (shouldAddNewline(chunk, accumulatedMarkdown.toString())) {
+                accumulatedMarkdown.append(chunk).append("\n");
+            } else {
+                accumulatedMarkdown.append(chunk);
+            }
 
             // 更新节流：检查是否需要立即更新
             long currentTime = System.currentTimeMillis();
@@ -76,6 +81,138 @@ public class AiResponseHandler {
     }
 
     /**
+     * 判断是否需要在chunk后添加换行符
+     *
+     * @param chunk 当前chunk
+     * @param previousContent 之前累积的内容
+     * @return 是否需要添加换行符
+     */
+    private boolean shouldAddNewline(String chunk, String previousContent) {
+        // 如果chunk为空或已经是换行符，不需要添加
+        if (chunk == null || chunk.isEmpty() || chunk.endsWith("\n")) {
+            return false;
+        }
+
+        // 检查是否在代码块中
+        boolean inCodeBlock = isInCodeBlock(previousContent);
+
+        // 如果是代码块开始标记，不添加换行符
+        if (chunk.trim().startsWith("```")) {
+            return false;
+        }
+
+        // 如果在代码块中，使用更智能的换行逻辑
+        if (inCodeBlock && !chunk.trim().equals("```")) {
+            // 检查chunk是否是代码行的开始
+            String trimmed = chunk.trim();
+
+            // 如果是代码块结束标记，不添加换行符
+            if (trimmed.equals("```")) {
+                return false;
+            }
+
+            // 检查是否需要换行的几种情况：
+            // 1. 明确的语句结束符
+            if (trimmed.endsWith(";") || trimmed.endsWith("{") || trimmed.endsWith("}")) {
+                return true;
+            }
+
+            // 2. 方法声明结束后（有括号但没有分号）
+            if (trimmed.matches(".*\\)\\s*$") && !trimmed.contains("(") || trimmed.matches(".*\\)\\s*throws\\s+\\w+")) {
+                return true;
+            }
+
+            // 3. 注释行处理 - 更保守的策略，避免在流式传输时错误换行
+            if (trimmed.startsWith("//")) {
+                // 单行注释：只在确实完整时才换行
+                // 如果注释包含未完成的代码结构，不换行
+                if (trimmed.contains("{") && !trimmed.contains("}")) {
+                    return false; // 未闭合的大括号，不换行
+                }
+                if (trimmed.contains("/*") && !trimmed.contains("*/")) {
+                    return false; // 未闭合的多行注释，不换行
+                }
+                // 简单的注释或者已完成的代码结构，可以换行
+                return true;
+            }
+            if (trimmed.startsWith("/*")) {
+                // 多行注释开始：只在同一行内完整时才换行
+                if (trimmed.contains("*/")) {
+                    return true; // 完整的多行注释在一行内
+                }
+                return false; // 多行注释开始，但未结束，不换行
+            }
+            if (trimmed.startsWith("*")) {
+                // JavaDoc注释中的*行：通常换行
+                // 但如果是注释中间的内容，可能不换行
+                return trimmed.length() > 1; // 只有 "*" 不换行，有内容才换行
+            }
+
+            // 4. 访问修饰符行（如public, private, static等单独出现）
+            if (trimmed.equals("public") || trimmed.equals("private") || trimmed.equals("protected") ||
+                trimmed.equals("static") || trimmed.equals("final") || trimmed.equals("abstract")) {
+                return false; // 这些通常是多行声明的一部分，暂时不换行
+            }
+
+            // 5. 空行或者只有空格的行
+            if (trimmed.isEmpty()) {
+                return true;
+            }
+
+            return false;
+        }
+
+        // 非代码块内容，不添加换行符
+        return false;
+    }
+
+    /**
+     * 判断是否像代码语句
+     */
+    private boolean looksLikeCodeStatement(String chunk) {
+        if (chunk == null || chunk.isEmpty()) {
+            return false;
+        }
+
+        String trimmed = chunk.trim();
+
+        // 检查常见的代码模式
+        return trimmed.contains("{") || trimmed.contains("}") ||
+               trimmed.contains(";") || trimmed.contains("(") ||
+               trimmed.contains("class ") || trimmed.contains("public ") ||
+               trimmed.contains("private ") || trimmed.contains("static ") ||
+               trimmed.contains("void ") || trimmed.contains("int ") ||
+               trimmed.contains("String ") || trimmed.contains("System.out") ||
+               trimmed.matches(".*\\s+\\w+\\s*\\(.*"); // 方法调用模式
+    }
+
+    /**
+     * 检查是否在代码块中
+     */
+    private boolean isInCodeBlock(String content) {
+        if (content == null || content.isEmpty()) {
+            return false;
+        }
+
+        // 计算未闭合的代码块标记数量
+        int codeBlockCount = 0;
+        int index = 0;
+
+        while (index < content.length()) {
+            int found = content.indexOf("```", index);
+            if (found == -1) {
+                break;
+            }
+            codeBlockCount++;
+            index = found + 3;
+        }
+
+        // 如果有奇数个```，说明在代码块中
+        return codeBlockCount % 2 == 1;
+    }
+
+    
+    /**
      * 安全地更新显示内容（带异常保护）
      */
     private void updateDisplaySafely() {
@@ -89,18 +226,20 @@ public class AiResponseHandler {
 
         SwingUtilities.invokeLater(() -> {
             try {
+                String markdownText = markdownRef.toString();
+
                 // 获取IDE主题的文本颜色
                 Color textColor = JBColor.foreground();
 
                 // 将累积的Markdown转换为HTML
-                String html = MarkdownToHtml.convert(markdownRef.toString(), textColor);
+                String html = MarkdownToHtml.convert(markdownText, textColor);
 
                 // 安全地设置HTML内容
                 if (html != null && !html.isEmpty()) {
                     // 使用 read() 方法替代 setText()，可以更好地处理HTML解析错误
                     // 先清空内容，避免累积错误
                     messageRef.setText("");
-                    
+
                     // 使用 StringReader 和 read() 方法，这样可以更好地处理解析错误
                     try (java.io.StringReader reader = new java.io.StringReader(html)) {
                         messageRef.read(reader, null);
